@@ -1,0 +1,24 @@
+---
+const nav = [
+  { label: "Work", href: "/work" },
+  { label: "Services", href: "/services" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
+];
+---
+<header class="sticky top-0 z-50 border-b border-line/60 bg-paper/80 backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <a href="/" class="flex items-center gap-2.5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-ink font-display text-[15px] font-semibold text-paper">MH<span class="text-signal-ondark">.</span></span>
+      <span class="font-display text-[19px] font-semibold tracking-tight text-ink">Mhal Studio<span class="text-signal">.</span></span>
+    </a>
+
+    <nav class="hidden items-center gap-8 md:flex">
+      {nav.map((item) => (
+        <a href={item.href} class="text-[15px] text-slate transition-colors hover:text-ink">{item.label}</a>
+      ))}
+    </nav>
+
+    <a href="/contact" class="rounded-full bg-signal px-5 py-2.5 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
+  </div>
+</header>

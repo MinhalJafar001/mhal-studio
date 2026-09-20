@@ -1,0 +1,24 @@
+---
+const quotes = [
+  { q: "Quick, communicative, and knows his game well. Would definitely recommend and work with them again.", a: "Profound Publishers", r: "Website Redesign" },
+  { q: "Delivered exactly what we were looking for. Responsive, professional, great work.", a: "Curated Kitchens & Bath", r: "Brand Identity" },
+  { q: "A great designer and communicator. Will use again.", a: "Revive Real Estate", r: "Ongoing Design" },
+  { q: "Responsive, collaborative, and delivered high-quality visuals that matched our vision. Highly recommend.", a: "Powered Now", r: "Brand Animation" },
+  { q: "Did a great job — I'd recommend them for any design project.", a: "Insia Ali", r: "Ad Creatives" },
+];
+---
+<section class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+  <div class="max-w-xl">
+    <p class="text-[14px] font-medium text-signal">Testimonials</p>
+    <h2 class="mt-3 font-display text-[clamp(2rem,4.4vw,3.4rem)] font-semibold text-ink">What clients say.</h2>
+  </div>
+  <div class="mt-12 columns-1 gap-5 md:columns-2 lg:columns-3 [&>*]:mb-5">
+    {quotes.map((t) => (
+      <figure class="break-inside-avoid rounded-[20px] border border-line bg-surface p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(14,17,22,0.25)]">
+        <span class="font-display text-4xl leading-none text-signal">“</span>
+        <blockquote class="mt-3 text-[17px] leading-relaxed text-ink">{t.q}</blockquote>
+        <figcaption class="mt-5 text-[15px]"><span class="font-medium text-ink">{t.a}</span><span class="text-slate"> · {t.r}</span></figcaption>
+      </figure>
+    ))}
+  </div>
+</section>

@@ -1,0 +1,42 @@
+---
+const year = new Date().getFullYear();
+---
+<footer class="mt-24 bg-ink text-paper">
+  <div class="mx-auto max-w-6xl px-6 py-16">
+    <div class="grid gap-10 md:grid-cols-3">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/10 font-display text-[15px] font-semibold">
+            MH<span class="text-signal-ondark">.</span>
+          </span>
+          <span class="font-display text-[19px] font-semibold">Mhal Studio<span class="text-signal-ondark">.</span></span>
+        </div>
+        <p class="mt-4 max-w-xs text-[15px] text-white/60">
+          Design & development for brands that mean business.
+        </p>
+      </div>
+
+      <div>
+        <p class="text-[13px] font-medium uppercase tracking-wider text-white/40">Studio</p>
+        <ul class="mt-4 space-y-2.5 text-[15px] text-white/70">
+          <li><a href="/work" class="hover:text-white">Work</a></li>
+          <li><a href="/services" class="hover:text-white">Services</a></li>
+          <li><a href="/about" class="hover:text-white">About</a></li>
+          <li><a href="/contact" class="hover:text-white">Contact</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-[13px] font-medium uppercase tracking-wider text-white/40">Get in touch</p>
+        <ul class="mt-4 space-y-2.5 text-[15px] text-white/70">
+          <li><a href="mailto:hello@mhalstudio.com" class="hover:text-white">hello@mhalstudio.com</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-14 flex flex-col gap-3 border-t border-white/10 pt-6 text-[14px] text-white/40 md:flex-row md:justify-between">
+      <span>© {year} Mhal Studio. All rights reserved.</span>
+      <span>Boutique web design & development.</span>
+    </div>
+  </div>
+</footer>

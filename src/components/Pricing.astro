@@ -1,0 +1,44 @@
+---
+const tiers = [
+  { title: "Website Design Only", price: "$300", desc: "A conversion-focused website design, ready to hand off to any developer.", features: ["Custom, on-brand design", "Fully responsive layouts", "Design files delivered"], cta: "Get started" },
+  { title: "Website Design + Development", price: "$500", desc: "Designed and built, launch-ready — on the platform that fits you best.", features: ["Everything in Design", "Built on Framer, Webflow, Shopify, WordPress, or custom code", "CMS setup + basic SEO + launch"], cta: "Start a project", featured: true },
+  { title: "Brand Identity Development", price: "$500", desc: "A complete identity that makes you instantly recognisable.", features: ["Logo & wordmark", "Colour & type system", "Brand guidelines + assets"], cta: "Get started" },
+];
+---
+<section id="pricing" class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+  <div class="max-w-xl">
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="text-[14px] font-medium text-signal">Pricing</p>
+      <span class="rounded-full border border-signal/25 bg-signal/[0.06] px-3 py-1 text-[13px] font-medium text-signal">Only 2 spots open this month</span>
+    </div>
+    <h2 class="mt-3 font-display text-[clamp(2rem,4.4vw,3.4rem)] font-semibold text-ink">Simple, transparent pricing.</h2>
+    <p class="mt-4 text-[16px] text-slate">Every project starts with a free consultation.</p>
+  </div>
+
+  <div class="mt-12 grid gap-5 md:grid-cols-3">
+    {tiers.map((t) => (
+      <div class={`relative flex h-full flex-col rounded-[22px] border bg-surface p-7 ${t.featured ? "border-2 border-signal shadow-[0_24px_60px_-34px_rgba(30,58,138,0.5)]" : "border-line"}`}>
+        {t.featured && <span class="absolute -top-3 left-7 rounded-full bg-signal px-3 py-1 text-[12px] font-medium text-white">Most popular</span>}
+        <h3 class="text-[21px] font-semibold text-ink">{t.title}</h3>
+        <div class="mt-4"><span class="text-[13px] text-slate">Starting from</span><p class="font-display text-[34px] font-bold leading-none text-ink">{t.price}</p></div>
+        <p class="mt-3 text-[15px] leading-relaxed text-slate">{t.desc}</p>
+        <ul class="mt-6 space-y-3 border-t border-line pt-6">
+          {t.features.map((f) => (
+            <li class="flex items-start gap-3 text-[15px] text-ink"><span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-signal/10 text-[11px] text-signal">✓</span>{f}</li>
+          ))}
+        </ul>
+        <div class="mt-8 pt-2">
+          <a href="/contact" class={`block rounded-full px-6 py-3 text-center text-[15px] font-medium transition-colors ${t.featured ? "bg-signal text-white hover:bg-signal-hover" : "border border-line text-ink hover:border-ink/30"}`}>{t.cta}</a>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="mt-5 flex flex-col items-start justify-between gap-5 rounded-[22px] bg-ink px-7 py-8 text-white md:flex-row md:items-center md:px-10">
+    <div>
+      <h3 class="text-[22px] font-semibold">Need something else or more?</h3>
+      <p class="mt-1.5 max-w-xl text-[15px] text-white/60">Every project is different — reach out and we'll put together a custom quote.</p>
+    </div>
+    <a href="/contact" class="shrink-0 rounded-full bg-signal-ondark px-6 py-3 text-[15px] font-medium text-white transition-colors hover:bg-signal-ondark/85">Reach out</a>
+  </div>
+</section>

@@ -1,0 +1,47 @@
+---
+const heroImages = [
+  { src: "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=560&h=460&fit=crop&auto=format&q=80", cls: "col-start-1 row-start-1 mt-8" },
+  { src: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=520&h=360&fit=crop&auto=format&q=80", cls: "col-start-2 row-start-1" },
+  { src: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=520&h=380&fit=crop&auto=format&q=80", cls: "col-start-1 row-start-2" },
+  { src: "https://images.unsplash.com/photo-1526498460520-4c246339dccb?w=500&h=420&fit=crop&auto=format&q=80", cls: "col-start-2 row-start-2 -mt-6" },
+];
+---
+<section class="relative overflow-hidden">
+  <div class="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-16 pt-16 md:grid-cols-2 md:pt-24">
+    <!-- Left: copy -->
+    <div>
+      <span class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] text-slate">
+        <span class="h-2 w-2 rounded-full bg-signal"></span>
+        Available for new projects · 2 spots left
+      </span>
+
+        <h1 class="mt-6 font-display text-[clamp(2.6rem,6vw,4.5rem)] font-bold leading-[1.02] tracking-tight text-ink">
+        <span class="word-reveal" style="animation-delay:.05s">We&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.12s">design&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.19s">&amp;&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.26s">build&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.33s">websites&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.40s">that&nbsp;</span>
+        <span class="word-reveal" style="animation-delay:.47s">convert<span class="text-signal">.</span></span>
+      </h1>
+
+      <p class="mt-6 max-w-md text-[17px] leading-relaxed text-slate">
+        Mhal Studio is a boutique design and development studio. We craft fast, beautiful websites — and build them on whatever fits you best, from Framer and Webflow to fully custom code.
+      </p>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a href="/contact" class="rounded-full bg-signal px-6 py-3 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
+        <a href="/work" class="rounded-full border border-line bg-surface px-6 py-3 text-[15px] font-medium text-ink transition-colors hover:border-ink/30">See our work</a>
+      </div>
+
+      <p class="mt-5 text-[14px] text-slate">Free consultation + free website audit — no strings attached.</p>
+    </div>
+
+    <!-- Right: floating image cluster -->
+    <div class="grid grid-cols-2 gap-4">
+      {heroImages.map((im) => (
+        <img src={im.src} alt="Recent Mhal Studio project" loading="eager" class={`rounded-[18px] border border-line object-cover shadow-[0_30px_60px_-40px_rgba(14,17,22,0.4)] ${im.cls}`} />
+      ))}
+    </div>
+  </div>
+</section>

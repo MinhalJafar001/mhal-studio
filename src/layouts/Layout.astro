@@ -1,0 +1,61 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const {
+  title = "Mhal Studio — Design & development for brands that mean business",
+  description = "Boutique web design and development studio. Fast, beautiful websites that convert — built on Framer, Webflow, Shopify, WordPress, or custom code.",
+  image = "/og-image.jpg",
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? "https://mhalstudio.com");
+
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  name: "Mhal Studio",
+  description: description,
+  url: "https://mhalstudio.com",
+  email: "hello@mhalstudio.com",
+  priceRange: "$$",
+  areaServed: "Worldwide",
+  serviceType: ["Website Design", "Website Development", "Brand Identity", "Landing Pages"],
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalURL} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={image} />
+    <meta property="og:site_name" content="Mhal Studio" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+
+    <!-- JSON-LD schema -->
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </head>
+  <body class="min-h-screen bg-paper text-ink">
+    <Header />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

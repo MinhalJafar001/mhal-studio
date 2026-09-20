@@ -1,0 +1,46 @@
+---
+import Layout from "../layouts/Layout.astro";
+const services = [
+  { n: "01", t: "Website Design", d: "Conversion-focused, on-brand design that makes you look like the leader in your space. Every layout is built to guide visitors toward taking action.", points: ["Custom, responsive design", "Conversion-focused layouts", "Brand-aligned visuals"] },
+  { n: "02", t: "Website Development", d: "Built on the right platform for you — Framer, Webflow, Shopify, WordPress, or fully custom code. Fast, reliable, and easy for you to manage.", points: ["Framer, Webflow, Shopify & more", "Custom code when you need it", "CMS setup + basic SEO"] },
+  { n: "03", t: "Brand Identity", d: "Logos, colour systems, and visual guidelines that make you instantly recognisable and build trust from the first impression.", points: ["Logo & wordmark", "Colour & type system", "Brand guidelines"] },
+  { n: "04", t: "Landing Pages", d: "High-converting single pages built to turn ad campaigns and launches into customers, with clear messaging and fast load times.", points: ["Campaign-ready pages", "A/B-friendly structure", "Optimised for conversions"] },
+  { n: "05", t: "AI-Enhanced Builds", d: "Smarter workflows and AI-powered features — from intelligent search to automated content — that give your site an edge.", points: ["AI-powered features", "Workflow automation", "Future-ready builds"] },
+];
+---
+<Layout title="Services — Mhal Studio" description="Website design, development, brand identity, landing pages, and AI-enhanced builds.">
+  <section class="mx-auto max-w-6xl px-6 py-16 md:py-24">
+    <div class="max-w-xl">
+      <p class="text-[14px] font-medium text-signal">Services</p>
+      <h1 class="mt-3 font-display text-[clamp(2.4rem,5vw,3.8rem)] font-semibold text-ink">Everything your website needs.</h1>
+      <p class="mt-4 text-[17px] leading-relaxed text-slate">
+        Design and development under one roof — so you get a site that looks great and actually performs.
+      </p>
+    </div>
+
+    <div class="mt-16 space-y-4">
+      {services.map((s) => (
+        <div class="grid gap-6 rounded-[24px] border border-line bg-surface p-8 md:grid-cols-[0.5fr_1fr] md:p-10">
+          <div class="flex items-start gap-4">
+            <span class="font-display text-[22px] font-bold text-signal">/{s.n}/</span>
+            <h2 class="font-display text-[26px] font-semibold text-ink">{s.t}</h2>
+          </div>
+          <div>
+            <p class="text-[16px] leading-relaxed text-slate">{s.d}</p>
+            <ul class="mt-5 flex flex-wrap gap-2.5">
+              {s.points.map((p) => (
+                <li class="rounded-full border border-line bg-paper px-4 py-1.5 text-[14px] text-ink">{p}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="mt-14 rounded-[24px] bg-signal px-8 py-12 text-center text-white">
+      <h2 class="font-display text-[clamp(1.6rem,3.5vw,2.4rem)] font-semibold">Not sure what you need?</h2>
+      <p class="mx-auto mt-3 max-w-md text-[16px] text-white/75">Book a free consultation and we'll help you figure out the right approach.</p>
+      <a href="/contact" class="mt-7 inline-block rounded-full bg-white px-7 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">Book a call</a>
+    </div>
+  </section>
+</Layout>

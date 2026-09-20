@@ -1,0 +1,70 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const projects = await getCollection("work");
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+const d = project.data;
+const cover = `https://images.unsplash.com/photo-${d.cover}?w=1400&h=760&fit=crop&auto=format&q=80`;
+---
+<Layout title={`${d.client} — Mhal Studio`} description={d.summary}>
+  <article class="mx-auto max-w-4xl px-6 py-16 md:py-24">
+    <!-- Header -->
+    <a href="/work" class="text-[15px] text-slate transition-colors hover:text-ink">← Back to work</a>
+    <p class="mt-8 text-[14px] font-medium text-signal">{d.category}</p>
+    <h1 class="mt-3 font-display text-[clamp(2.2rem,5vw,3.6rem)] font-semibold leading-tight text-ink">{d.title}</h1>
+    <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px] text-slate">
+      <span><span class="text-ink/50">Client:</span> {d.client}</span>
+      <span><span class="text-ink/50">Year:</span> {d.year}</span>
+      <span><span class="text-ink/50">Services:</span> {d.services.join(", ")}</span>
+    </div>
+
+    <!-- Cover -->
+    <figure class="mt-10 overflow-hidden rounded-[24px] border border-line">
+      <img src={cover} alt={d.client} class="aspect-[16/9] w-full object-cover" />
+    </figure>
+
+    <!-- Results metrics -->
+    <div class="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-[22px] border border-line bg-line sm:grid-cols-3">
+      {d.results.map((r) => (
+        <div class="bg-paper px-6 py-8 text-center">
+          <div class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold text-signal">{r.metric}</div>
+          <p class="mt-1 text-[14px] text-slate">{r.label}</p>
+        </div>
+      ))}
+    </div>
+
+    <!-- Challenge & Process -->
+    <div class="mt-14 grid gap-10 md:grid-cols-2">
+      <div>
+        <h2 class="font-display text-[22px] font-semibold text-ink">The challenge</h2>
+        <p class="mt-3 text-[16px] leading-relaxed text-slate">{d.challenge}</p>
+      </div>
+      <div>
+        <h2 class="font-display text-[22px] font-semibold text-ink">The process</h2>
+        <p class="mt-3 text-[16px] leading-relaxed text-slate">{d.process}</p>
+      </div>
+    </div>
+
+    <!-- Long-form body from Markdown -->
+    <div class="prose mt-14 max-w-none border-t border-line pt-10 text-[17px] leading-relaxed text-slate [&>p]:mb-5 [&>p]:max-w-2xl">
+      <h2 class="mb-4 font-display text-[22px] font-semibold text-ink">The results</h2>
+      <Content />
+    </div>
+
+    <!-- CTA -->
+    <div class="mt-16 rounded-[24px] bg-signal px-8 py-12 text-center text-white">
+      <h2 class="font-display text-[clamp(1.6rem,3.5vw,2.4rem)] font-semibold">Want results like these?</h2>
+      <p class="mx-auto mt-3 max-w-md text-[16px] text-white/75">Book a free consultation and let's talk about your project.</p>
+      <a href="/contact" class="mt-7 inline-block rounded-full bg-white px-7 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">Book a call</a>
+    </div>
+  </article>
+</Layout>

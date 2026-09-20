@@ -1,0 +1,55 @@
+---
+const projects = [
+  { name: "Profound Publishers", cat: "Website Redesign", result: "A faster, cleaner site that reflects their authority.", img: "1481487196290-c152efe083f5" },
+  { name: "Curated Kitchens & Bath", cat: "Brand Identity", result: "A polished identity for a premium remodeler.", img: "1556909212-d5b604d0c90d" },
+  { name: "Dreamerce", cat: "Ad & Visual Design", result: "Scroll-stopping creative built to perform.", img: "1467232004584-a241de8bcf5d" },
+  { name: "Kids Studio", cat: "Landing Page", result: "A playful, high-converting landing concept.", img: "1503454537195-1dcabb73ffb9" },
+];
+const img = (id) => `https://images.unsplash.com/photo-${id}?w=900&h=620&fit=crop&auto=format&q=80`;
+---
+<section id="work" class="py-20 md:py-28">
+  <div class="mx-auto mb-12 max-w-6xl px-6">
+    <p class="text-[14px] font-medium text-signal">Selected work</p>
+    <h2 class="mt-3 font-display text-[clamp(2rem,4.4vw,3.4rem)] font-semibold text-ink">
+      A few brands we've helped level up.
+    </h2>
+  </div>
+
+  <!-- Horizontal scroll track -->
+  <div class="work-scroll flex gap-6 overflow-x-auto px-6 pb-6 [scroll-snap-type:x_mandatory] no-scrollbar md:px-[max(1.5rem,calc((100vw-72rem)/2))]">
+    {projects.map((p) => (
+      <a href="/work" class="group relative block w-[85vw] shrink-0 overflow-hidden rounded-[24px] border border-line bg-surface [scroll-snap-align:start] md:w-[560px]">
+        <div class="h-[62vw] max-h-[440px] overflow-hidden md:h-[380px]">
+          <img src={img(p.img)} alt={p.name} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        </div>
+        <span class="absolute left-5 top-5 rounded-full bg-paper/90 px-3 py-1 text-[13px] font-medium text-ink backdrop-blur">{p.cat}</span>
+        <div class="flex items-end justify-between gap-4 p-6">
+          <div>
+            <h3 class="font-display text-[24px] font-semibold text-ink">{p.name}</h3>
+            <p class="mt-1 text-[15px] text-slate">{p.result}</p>
+          </div>
+          <span class="shrink-0 text-signal transition-transform duration-300 group-hover:translate-x-1">View project →</span>
+        </div>
+      </a>
+    ))}
+  </div>
+
+  <!-- Progress bar -->
+  <div class="mx-auto mt-6 max-w-6xl px-6">
+    <div class="h-1 w-full overflow-hidden rounded-full bg-line">
+      <div class="work-progress h-full w-1/4 rounded-full bg-signal transition-[width] duration-150"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const track = document.querySelector(".work-scroll");
+  const bar = document.querySelector(".work-progress");
+  if (track && bar) {
+    track.addEventListener("scroll", () => {
+      const max = track.scrollWidth - track.clientWidth;
+      const pct = max > 0 ? (track.scrollLeft / max) * 100 : 0;
+      bar.style.width = `${Math.max(25, pct)}%`;
+    });
+  }
+</script>
