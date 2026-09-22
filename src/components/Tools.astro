@@ -1,18 +1,31 @@
 ---
-const tools = [
-  { name: "Figma", path: "M8 12a4 4 0 0 1 4-4h4v8h-4a4 4 0 0 1-4-4z M16 4h-4a4 4 0 1 0 0 8h4V4z M16 20a4 4 0 1 0 4-4h-4v4z M8 20a4 4 0 0 0 8 0v-4h-4a4 4 0 0 0-4 4z M16 12a4 4 0 1 0 4-4 4 4 0 0 0-4 4z" },
-];
+const tools = ["Figma", "Framer", "Webflow", "Shopify", "WordPress", "Squarespace"];
+const loop = [...tools, ...tools];
 ---
 <section class="mx-auto max-w-6xl px-6 py-14">
   <p class="text-center text-[14px] text-slate">The tools we build with</p>
   <div class="marquee-track relative mt-6 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-    <div class="animate-marquee flex w-max items-center gap-14 text-ink/60" style="--marquee-duration:26s">
-      {[
-        "Figma","Framer","Webflow","Shopify","WordPress","Squarespace",
-        "Figma","Framer","Webflow","Shopify","WordPress","Squarespace"
-      ].map((name) => (
-        <div class="flex items-center gap-2.5 whitespace-nowrap transition-colors hover:text-ink">
-          <img src={`https://cdn.simpleicons.org/${name.toLowerCase()}`} alt={name} width="22" height="22" class="h-[22px] w-[22px]" />          <span class="font-display text-[20px] font-medium">{name}</span>
+    <div class="animate-marquee flex w-max items-center gap-14 text-ink/70" style="--marquee-duration:26s">
+      {loop.map((name) => (
+        <div class="flex items-center gap-2.5 whitespace-nowrap">
+          {name === "Figma" && (
+            <svg viewBox="0 0 38 57" class="h-[22px] w-auto" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#1abcfe" d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/>
+              <path fill="#0acf83" d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z"/>
+              <path fill="#ff7262" d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z"/>
+              <path fill="#f24e1e" d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/>
+              <path fill="#a259ff" d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/>
+            </svg>
+          )}
+          {name === "Framer" && (
+            <svg viewBox="0 0 24 24" class="h-[22px] w-auto" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#0055ff" d="M4 0h16v8h-8zM4 8h8l8 8H4zM4 16h8v8z"/>
+            </svg>
+          )}
+          {!["Figma", "Framer"].includes(name) && (
+            <img src={`https://cdn.simpleicons.org/${name.toLowerCase()}`} alt={name} class="h-[22px] w-auto" />
+          )}
+          <span class="font-display text-[20px] font-medium">{name}</span>
         </div>
       ))}
     </div>
