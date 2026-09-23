@@ -21,8 +21,7 @@ const img = (file) => `/services/${file}`;
       <article class="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(14,17,22,0.3)]">
         <div class="relative h-44 overflow-hidden bg-paper">
           <img src={img(s.img)} alt={s.t} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-          <span class="absolute left-4 top-4 rounded-full bg-paper/90 px-2.5 py-1 font-display text-[13px] font-semibold text-signal backdrop-blur">/{s.n}/</span>
-        </div>
+          <span class="absolute right-4 top-2 font-display text-[64px] font-bold leading-none text-white/80 mix-blend-overlay">{s.n}</span>        </div>
         <div class="flex flex-1 flex-col p-6">
           <h3 class="text-[22px] font-semibold text-ink">{s.t}</h3>
           <p class="mt-2 text-[15px] leading-relaxed text-slate">{s.d}</p>
