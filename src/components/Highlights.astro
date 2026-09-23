@@ -19,17 +19,17 @@ const stats = [
 ---
 
 <!-- Trust bar -->
-<section class="border-y border-line bg-surface/40 py-10">
-  <p class="text-center text-[14px] text-slate">Trusted by growing brands</p>
-  <div class="marquee-track relative mt-7 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-    <div class="animate-marquee flex w-max items-center gap-14" style="--marquee-duration:40s">
+<section class="bg-ink py-12">
+  <p class="text-center text-[13px] font-medium tracking-wide text-white/50">Trusted by growing brands</p>
+  <div class="marquee-track relative mx-auto mt-8 max-w-3xl overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_15%,#000_85%,transparent)]">
+    <div class="animate-marquee flex w-max items-center gap-12" style="--marquee-duration:28s">
       {clientLoop.map((file) => (
-        <div class="flex h-12 w-32 shrink-0 items-center justify-center">
+        <div class="flex h-12 w-28 shrink-0 items-center justify-center">
           <img
             src={`/clients/${encodeURIComponent(file)}`}
             alt="Mhal Studio client"
             loading="lazy"
-            class="max-h-11 max-w-full object-contain opacity-90 transition duration-300 hover:opacity-100"
+            class="max-h-10 max-w-full object-contain brightness-0 invert opacity-70 transition duration-300 hover:opacity-100"
           />
         </div>
       ))}
