@@ -1,9 +1,9 @@
 ---
 const steps = [
-  { n: "01", t: "Discovery & Strategy", d: "We learn your goals, audience, and what success looks like — so every design decision has a reason behind it." },
-  { n: "02", t: "Design", d: "We design a site that looks great and guides visitors to act, mapped to your brand and your conversion goals." },
-  { n: "03", t: "Build & Launch", d: "We build it fast on the right platform — tested, optimised, and ready to perform from day one." },
-  { n: "04", t: "Support & Growth", d: "We hand off cleanly and stay available as you grow, with support and improvements whenever you need them." },
+  { n: "01", t: "Discovery & Strategy", d: "We learn your goals, audience, and what success looks like — so every design decision has a reason behind it.", icon: "compass" },
+  { n: "02", t: "Design", d: "We design a site that looks great and guides visitors to act, mapped to your brand and your conversion goals.", icon: "pen" },
+  { n: "03", t: "Build & Launch", d: "We build it fast on the right platform — tested, optimised, and ready to perform from day one.", icon: "rocket" },
+  { n: "04", t: "Support & Growth", d: "We hand off cleanly and stay available as you grow, with support and improvements whenever you need them.", icon: "growth" },
 ];
 ---
 <section id="process" class="mx-auto max-w-6xl px-6 py-20 md:py-28">
@@ -19,9 +19,9 @@ const steps = [
     <div class="hidden md:block">
       <div class="sticky top-28 space-y-3">
         {steps.map((s) => (
-          <div class="process-tab flex items-center gap-4 rounded-2xl border border-transparent px-5 py-4 transition-all" data-step={s.n}>
-            <span class="font-display text-[22px] font-bold text-line">/{s.n}/</span>
-            <span class="text-[19px] font-medium text-slate">{s.t}</span>
+          <div class="process-tab flex items-center gap-5 rounded-2xl border border-transparent px-5 py-4 transition-all" data-step={s.n}>
+            <span class="process-num flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-line font-display text-[20px] font-bold text-slate transition-all">{s.n}</span>
+            <span class="process-title text-[19px] font-medium text-slate transition-colors">{s.t}</span>
           </div>
         ))}
       </div>
@@ -31,8 +31,22 @@ const steps = [
     <div class="space-y-6">
       {steps.map((s) => (
         <div class="process-panel rounded-[22px] border border-line bg-surface p-8" data-step={s.n}>
-          <span class="font-display text-[15px] font-semibold text-signal">/{s.n}/</span>
-          <h3 class="mt-3 font-display text-[26px] font-semibold text-ink">{s.t}</h3>
+          <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-signal/10 text-signal">
+            {s.icon === "compass" && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            )}
+            {s.icon === "pen" && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            )}
+            {s.icon === "rocket" && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+            )}
+            {s.icon === "growth" && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+            )}
+          </span>
+          <span class="mt-4 block font-display text-[15px] font-semibold text-signal">/{s.n}/</span>
+          <h3 class="mt-2 font-display text-[26px] font-semibold text-ink">{s.t}</h3>
           <p class="mt-3 text-[16px] leading-relaxed text-slate">{s.d}</p>
         </div>
       ))}
@@ -48,10 +62,14 @@ const steps = [
       const on = tab.getAttribute("data-step") === n;
       tab.classList.toggle("border-line", on);
       tab.classList.toggle("bg-surface", on);
-      tab.querySelector("span:first-child")?.classList.toggle("text-signal", on);
-      tab.querySelector("span:first-child")?.classList.toggle("text-line", !on);
-      tab.querySelector("span:last-child")?.classList.toggle("text-ink", on);
-      tab.querySelector("span:last-child")?.classList.toggle("text-slate", !on);
+      const num = tab.querySelector(".process-num");
+      const title = tab.querySelector(".process-title");
+      num?.classList.toggle("bg-signal", on);
+      num?.classList.toggle("text-white", on);
+      num?.classList.toggle("border-signal", on);
+      num?.classList.toggle("text-slate", !on);
+      title?.classList.toggle("text-ink", on);
+      title?.classList.toggle("text-slate", !on);
     });
   };
   const obs = new IntersectionObserver(
