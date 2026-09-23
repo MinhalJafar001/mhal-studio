@@ -42,11 +42,36 @@ const img = (file) => `/work/${file}`;
 <script>
   const track = document.querySelector(".work-scroll");
   const bar = document.querySelector(".work-progress");
-  if (track && bar) {
-    track.addEventListener("scroll", () => {
+
+  if (track) {
+    // Progress bar
+    const updateBar = () => {
+      if (!bar) return;
       const max = track.scrollWidth - track.clientWidth;
       const pct = max > 0 ? (track.scrollLeft / max) * 100 : 0;
       bar.style.width = `${Math.max(25, pct)}%`;
+    };
+    track.addEventListener("scroll", updateBar);
+
+    // Click-and-drag
+    let isDown = false;
+    let startX = 0;
+    let startScroll = 0;
+
+    track.addEventListener("mousedown", (e) => {
+      isDown = true;
+      track.classList.add("is-dragging");
+      startX = e.pageX;
+      startScroll = track.scrollLeft;
+    });
+    window.addEventListener("mouseup", () => {
+      isDown = false;
+      track.classList.remove("is-dragging");
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      track.scrollLeft = startScroll - (e.pageX - startX);
     });
   }
 </script>

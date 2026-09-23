@@ -101,3 +101,7 @@
   50% { opacity: 1; transform: translateY(-4px); }
 }
 .tool-fade { animation: toolFade 4s ease-in-out infinite; }
+/* Draggable work scroll */
+.work-scroll { cursor: grab; }
+.work-scroll.is-dragging { cursor: grabbing; scroll-snap-type: none; }
+.work-scroll.is-dragging img { pointer-events: none; }
