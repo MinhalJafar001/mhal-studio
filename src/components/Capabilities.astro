@@ -10,11 +10,59 @@
 
   <div class="mt-12 grid auto-rows-[minmax(150px,auto)] grid-cols-2 gap-4 md:grid-cols-4">
     <!-- Large ink tile -->
-    <div class="relative col-span-2 row-span-2 flex md:row-span-3 flex-col justify-center rounded-[20px] bg-ink p-7 text-white">
-      <span class="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-[11px] bg-white/10 font-display text-[15px] font-semibold">MH<span class="text-signal-ondark">.</span></span>
-      <h3 class="max-w-sm font-display text-[clamp(1.6rem,3vw,2.4rem)] font-semibold leading-tight">
-        Design and build, under one roof.
-      </h3>
+    <div class="col-span-2 row-span-2 flex flex-col justify-between gap-8 rounded-[20px] bg-ink p-7 text-white md:row-span-3 md:p-8">
+      <div class="flex items-center justify-between">
+        <span class="text-[13px] font-medium text-white/50">Design → Code</span>
+        <span class="flex h-10 w-10 items-center justify-center rounded-[11px] bg-white/10 font-display text-[15px] font-semibold">MH<span class="text-signal-ondark">.</span></span>
+      </div>
+
+      <!-- Illustration: design canvas flowing into code -->
+      <svg viewBox="0 0 360 170" class="w-full" aria-hidden="true">
+        <rect x="1" y="1" width="358" height="168" rx="12" class="fill-white/[0.04] stroke-white/15" />
+        <line x1="1" y1="26" x2="359" y2="26" class="stroke-white/15" />
+        <circle cx="16" cy="14" r="3" class="fill-white/25" />
+        <circle cx="28" cy="14" r="3" class="fill-white/25" />
+        <circle cx="40" cy="14" r="3" class="fill-white/25" />
+        <line x1="180" y1="26" x2="180" y2="169" stroke-dasharray="4 4" class="stroke-white/15" />
+
+        <!-- Design side -->
+        <rect x="16" y="42" width="110" height="10" rx="5" class="fill-white/70" />
+        <rect x="12" y="38" width="118" height="18" rx="3" fill="none" class="stroke-signal-ondark" />
+        <rect x="10" y="36" width="4" height="4" class="fill-white" />
+        <rect x="128" y="36" width="4" height="4" class="fill-white" />
+        <rect x="10" y="54" width="4" height="4" class="fill-white" />
+        <rect x="128" y="54" width="4" height="4" class="fill-white" />
+        <rect x="16" y="64" width="140" height="6" rx="3" class="fill-white/25" />
+        <rect x="16" y="76" width="118" height="6" rx="3" class="fill-white/25" />
+        <rect x="16" y="94" width="56" height="18" rx="9" class="fill-signal-ondark" />
+        <rect x="16" y="122" width="148" height="34" rx="6" class="fill-white/10" />
+
+        <!-- Code side -->
+        <rect x="196" y="42" width="38" height="6" rx="3" class="fill-signal-ondark" />
+        <rect x="240" y="42" width="54" height="6" rx="3" class="fill-white/40" />
+        <rect x="208" y="58" width="70" height="6" rx="3" class="fill-white/25" />
+        <rect x="208" y="74" width="30" height="6" rx="3" class="fill-signal-ondark/70" />
+        <rect x="244" y="74" width="80" height="6" rx="3" class="fill-white/25" />
+        <rect x="208" y="90" width="96" height="6" rx="3" class="fill-white/25" />
+        <rect x="220" y="106" width="60" height="6" rx="3" class="fill-white/40" />
+        <rect x="220" y="122" width="44" height="6" rx="3" class="fill-signal-ondark/70" />
+        <rect x="270" y="122" width="52" height="6" rx="3" class="fill-white/25" />
+        <rect x="196" y="138" width="46" height="6" rx="3" class="fill-signal-ondark" />
+      </svg>
+
+      <div>
+        <h3 class="max-w-md font-display text-[clamp(2rem,3.4vw,2.9rem)] font-semibold leading-[1.05]">
+          Design and build, under one roof.
+        </h3>
+        <p class="mt-3 max-w-md text-[15px] leading-relaxed text-white/60">
+          The same senior team takes your site from strategy to launch — no hand-offs, nothing lost in translation.
+        </p>
+        <ul class="mt-5 flex flex-wrap gap-2">
+          {["Website Design", "Development", "Brand Identity", "Landing Pages"].map((c) => (
+            <li class="rounded-full border border-white/15 px-3 py-1 text-[13px] text-white/70">{c}</li>
+          ))}
+        </ul>
+      </div>
     </div>
 
     <!-- Stat tile -->
@@ -39,13 +87,26 @@
     </div>
 
     <!-- MH tile -->
-    <div class="flex items-center justify-center rounded-[20px] border border-line bg-paper p-6">
+    <div class="hidden items-center justify-center rounded-[20px] border border-line bg-paper p-6 md:flex">
       <span class="flex h-16 w-16 items-center justify-center rounded-[16px] bg-ink font-display text-2xl font-semibold text-paper">MH<span class="text-signal-ondark">.</span></span>
     </div>
 
     <!-- Senior tile -->
-    <div class="flex flex-col justify-center rounded-[20px] border border-line bg-surface p-6 md:col-span-2">
-      <h3 class="text-[20px] font-semibold leading-snug text-ink">Senior, hands-on work — every project.</h3>
+    <div class="col-span-2 flex flex-col justify-center gap-5 rounded-[20px] border border-line bg-surface p-6 md:flex-row md:items-center md:justify-between md:gap-8">
+      <div class="md:max-w-[15rem]">
+        <span class="font-display text-[15px] font-bold text-signal">15+ years</span>
+        <h3 class="mt-1 text-[20px] font-semibold leading-snug text-ink">Senior, hands-on work — every project.</h3>
+      </div>
+      <ul class="space-y-2.5">
+        {["No account managers", "No juniors, no handoffs", "Direct access to your builder"].map((item) => (
+          <li class="flex items-center gap-2.5 text-[14px] text-slate">
+            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-signal/10 text-signal">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
     </div>
   </div>
 </section>
