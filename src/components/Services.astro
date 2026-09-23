@@ -1,12 +1,12 @@
 ---
 const services = [
-  { n: "01", t: "Website Design", d: "Conversion-focused design that makes your brand look like the leader it is.", img: "1467232004584-a241de8bcf5d" },
-  { n: "02", t: "Website Development", d: "Built on the right platform for you — Framer, Webflow, Shopify, WordPress, or fully custom code.", img: "1542744095-291d1f67b221" },
-  { n: "03", t: "Brand Identity", d: "Logos, systems, and visuals that make you instantly recognisable.", img: "1626785774573-4b799315345d" },
-  { n: "04", t: "Landing Pages", d: "High-converting pages that turn campaigns into customers.", img: "1551650975-87deedd944c3" },
-  { n: "05", t: "AI-Enhanced Builds", d: "Smarter workflows and AI-powered features that give you an edge.", img: "1620712943543-bcc4688e7485" },
+  { n: "01", t: "Website Design", d: "Conversion-focused design that makes your brand look like the leader it is.", img: "design.png" },
+  { n: "02", t: "Website Development", d: "Built on the right platform for you — Framer, Webflow, Shopify, WordPress, or fully custom code.", img: "development.png" },
+  { n: "03", t: "Brand Identity", d: "Logos, systems, and visuals that make you instantly recognisable.", img: "brand.png" },
+  { n: "04", t: "Landing Pages", d: "High-converting pages that turn campaigns into customers.", img: "landing.png" },
+  { n: "05", t: "AI-Enhanced Builds", d: "Smarter workflows and AI-powered features that give you an edge.", img: "ai.png" },
 ];
-const img = (id) => `https://images.unsplash.com/photo-${id}?w=640&h=360&fit=crop&auto=format&q=80`;
+const img = (file) => `/services/${file}`;
 ---
 <section id="services" class="mx-auto max-w-6xl px-6 py-20 md:py-28">
   <div class="max-w-2xl">
