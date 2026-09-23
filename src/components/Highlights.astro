@@ -5,7 +5,7 @@ const clients = [
   "Dreamerce PNG.webp",
   "Powered Now PNG.png",
   "Profound Publishers PNG.png",
-  "Revive.svg",
+  "Revive PNG.svg",
   "Scoop Analytics PNG.png",
   "Sterling Accountant Hub PNG.png",
 ];
@@ -21,15 +21,17 @@ const stats = [
 <!-- Trust bar -->
 <section class="border-y border-line bg-surface/40 py-10">
   <p class="text-center text-[14px] text-slate">Trusted by growing brands</p>
-  <div class="marquee-track relative mt-6 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-    <div class="animate-marquee flex w-max items-center gap-16" style="--marquee-duration:38s">
+  <div class="marquee-track relative mt-7 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
+    <div class="animate-marquee flex w-max items-center gap-14" style="--marquee-duration:40s">
       {clientLoop.map((file) => (
-        <img
-          src={`/clients/${encodeURIComponent(file)}`}
-          alt="Mhal Studio client"
-          loading="lazy"
-          class="h-9 w-auto shrink-0 object-contain opacity-60 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0"
-        />
+        <div class="flex h-12 w-32 shrink-0 items-center justify-center">
+          <img
+            src={`/clients/${encodeURIComponent(file)}`}
+            alt="Mhal Studio client"
+            loading="lazy"
+            class="max-h-11 max-w-full object-contain opacity-80 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0"
+          />
+        </div>
       ))}
     </div>
   </div>
