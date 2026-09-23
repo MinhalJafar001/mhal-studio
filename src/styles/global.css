@@ -16,7 +16,7 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
   }
   body {
     background-color: var(--color-paper);
@@ -105,3 +105,7 @@
 .work-scroll { cursor: grab; }
 .work-scroll.is-dragging { cursor: grabbing; scroll-snap-type: none; }
 .work-scroll.is-dragging img { pointer-events: none; }
+/* Lenis smooth scroll */
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
