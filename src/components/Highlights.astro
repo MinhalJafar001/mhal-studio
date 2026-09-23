@@ -1,5 +1,15 @@
 ---
-const clients = ["Profound Publishers", "Curated Kitchens & Bath", "Revive Real Estate", "Scoop Analytics", "Powered Now", "Insia Ali"];
+const clients = [
+  "Conventus PNG.webp",
+  "Curated Logo ff (1).png",
+  "Dreamerce PNG.webp",
+  "Powered Now PNG.png",
+  "Profound Publishers PNG.png",
+  "Revive.svg",
+  "Scoop Analytics PNG.png",
+  "Sterling Accountant Hub PNG.png",
+];
+const clientLoop = [...clients, ...clients];
 const stats = [
   { v: "15+", label: "years in the craft" },
   { v: "50+", label: "projects delivered" },
@@ -12,9 +22,14 @@ const stats = [
 <section class="border-y border-line bg-surface/40 py-10">
   <p class="text-center text-[14px] text-slate">Trusted by growing brands</p>
   <div class="marquee-track relative mt-6 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-    <div class="animate-marquee flex w-max gap-14" style="--marquee-duration:34s">
-      {[...clients, ...clients].map((c) => (
-        <span class="whitespace-nowrap font-display text-[22px] font-medium text-ink/60">{c}</span>
+    <div class="animate-marquee flex w-max items-center gap-16" style="--marquee-duration:38s">
+      {clientLoop.map((file) => (
+        <img
+          src={`/clients/${encodeURIComponent(file)}`}
+          alt="Mhal Studio client"
+          loading="lazy"
+          class="h-9 w-auto shrink-0 object-contain opacity-60 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0"
+        />
       ))}
     </div>
   </div>
