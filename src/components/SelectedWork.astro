@@ -28,7 +28,22 @@ const img = (file) => `/work/${file}`;
           <p class="mt-1 text-[15px] text-slate">{p.result}</p>
         </div>
       </div>
-    ))}
+    ))}    <!-- Explore more card -->
+    <div class="flex w-[85vw] shrink-0 flex-col justify-between rounded-[24px] bg-ink p-8 text-white [scroll-snap-align:start] md:w-[420px]">
+      <span class="flex h-11 w-11 items-center justify-center rounded-[12px] bg-white/10 font-display text-[17px] font-semibold">MH<span class="text-signal-ondark">.</span></span>
+      <div>
+        <h3 class="font-display text-[clamp(1.6rem,3vw,2.1rem)] font-semibold leading-tight">
+          Explore more of our work.
+        </h3>
+        <p class="mt-3 max-w-xs text-[15px] text-white/60">
+          See the full portfolio of websites, brands, and projects we've delivered.
+        </p>
+        <a href="/work" class="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">
+          View all work
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </div>
   </div>
 
   <!-- Progress bar -->
