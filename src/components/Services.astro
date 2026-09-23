@@ -23,6 +23,10 @@ const img = (file) => `/services/${file}`;
           <img src={img(s.img)} alt={s.t} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
           <span class="absolute right-4 top-2 font-display text-[64px] font-bold leading-none text-white/80 mix-blend-overlay">{s.n}</span>        </div>
         <div class="flex flex-1 flex-col p-6">
+          <div class="mb-2 flex items-center gap-3">
+            <span class="font-display text-[15px] font-bold text-signal">{s.n}</span>
+            <span class="h-px flex-1 bg-line"></span>
+          </div>
           <h3 class="text-[22px] font-semibold text-ink">{s.t}</h3>
           <p class="mt-2 text-[15px] leading-relaxed text-slate">{s.d}</p>
         </div>
