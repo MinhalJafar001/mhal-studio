@@ -49,8 +49,7 @@ const tools = ["framer", "webflow", "shopify"]; // figma handled separately belo
 
     <!-- Right: two-column scrolling mockups + fading tool icons -->
     <div class="relative mx-auto hidden w-full max-w-md md:block">
-      <div class="showcase-mask grid h-[540px] grid-cols-2 gap-4 overflow-hidden rounded-[24px] border border-line bg-surface p-4 shadow-[0_40px_90px_-40px_rgba(14,17,22,0.35)]">
-        <!-- Column A: scrolls up -->
+      <div class="showcase-mask grid h-[540px] grid-cols-2 items-start gap-4 overflow-hidden rounded-[24px] border border-line bg-surface p-4 shadow-[0_40px_90px_-40px_rgba(14,17,22,0.35)]">        <!-- Column A: scrolls up -->
         <div class="showcase-up flex flex-col gap-4">
           {loopA.map((file) => (
             <img src={`/mockups/${encodeURIComponent(file)}`} alt="Mhal Studio website project" loading="lazy" class="w-full rounded-[12px] border border-line object-cover" />

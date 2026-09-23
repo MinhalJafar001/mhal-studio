@@ -78,24 +78,26 @@
   scrollbar-width: none;
 }
 /* Hero mockup showcase */
-@keyframes showcaseScroll {
+@keyframes showcaseUp {
   from { transform: translateY(0); }
   to { transform: translateY(-50%); }
 }
-.showcase-track {
-  animation: showcaseScroll 30s linear infinite;
+@keyframes showcaseDown {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(0); }
 }
-.showcase-mask:hover .showcase-track {
+.showcase-up { animation: showcaseUp 32s linear infinite; }
+.showcase-down { animation: showcaseDown 32s linear infinite; }
+.showcase-mask:hover .showcase-up,
+.showcase-mask:hover .showcase-down {
   animation-play-state: paused;
 }
 .showcase-mask {
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
 }
 @keyframes toolFade {
   0%, 100% { opacity: 0.25; transform: translateY(0); }
   50% { opacity: 1; transform: translateY(-4px); }
 }
-.tool-fade {
-  animation: toolFade 4s ease-in-out infinite;
-}
+.tool-fade { animation: toolFade 4s ease-in-out infinite; }
