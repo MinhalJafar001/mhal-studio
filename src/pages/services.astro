@@ -1,12 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
-// numStyle: each service shows its number differently (see the number block below)
 const services = [
-  { n: "01", numStyle: "tile", t: "Website Design", d: "Conversion-focused, on-brand design that makes you look like the leader in your space. Every layout is built to guide visitors toward taking action.", points: ["Custom, responsive design", "Conversion-focused layouts", "Brand-aligned visuals"] },
-  { n: "02", numStyle: "outline", t: "Website Development", d: "Built on the right platform for you — Framer, Webflow, Shopify, WordPress, or fully custom code. Fast, reliable, and easy for you to manage.", points: ["Framer, Webflow, Shopify & more", "Custom code when you need it", "CMS setup + basic SEO"] },
-  { n: "03", numStyle: "circle", t: "Social Media Assets", d: "Scroll-stopping posts, ads, and templates designed around your brand, so every feed and campaign looks consistent and professional.", points: ["Post & story templates", "Ad creatives", "Platform-ready sizes"] },
-  { n: "04", numStyle: "fraction", t: "Logo & Brand Identity", d: "Logos, colour systems, and visual guidelines that make you instantly recognisable and build trust from the first impression.", points: ["Logo & wordmark", "Colour & type system", "Brand guidelines"] },
-  { n: "05", numStyle: "pill", t: "Chat & Call Bots", d: "AI chat and voice assistants trained on your business — answering questions, booking calls, and capturing leads around the clock, then handing off to you when it matters.", points: ["Website chatbots", "AI call answering", "Lead capture & booking"] },
+  { n: "01", t: "Website Design", d: "Conversion-focused, on-brand design that makes you look like the leader in your space. Every layout is built to guide visitors toward taking action.", points: ["Custom, responsive design", "Conversion-focused layouts", "Brand-aligned visuals"] },
+  { n: "02", t: "Website Development", d: "Built on the right platform for you — Framer, Webflow, Shopify, WordPress, or fully custom code. Fast, reliable, and easy for you to manage.", points: ["Framer, Webflow, Shopify & more", "Custom code when you need it", "CMS setup + basic SEO"] },
+  { n: "03", t: "Social Media Assets", d: "Scroll-stopping posts, ads, and templates designed around your brand, so every feed and campaign looks consistent and professional.", points: ["Post & story templates", "Ad creatives", "Platform-ready sizes"] },
+  { n: "04", t: "Logo & Brand Identity", d: "Logos, colour systems, and visual guidelines that make you instantly recognisable and build trust from the first impression.", points: ["Logo & wordmark", "Colour & type system", "Brand guidelines"] },
+  { n: "05", t: "Chat & Call Bots", d: "AI chat and voice assistants trained on your business — answering questions, booking calls, and capturing leads around the clock, then handing off to you when it matters.", points: ["Website chatbots", "AI call answering", "Lead capture & booking"] },
 ];
 const total = String(services.length).padStart(2, "0");
 ---
@@ -22,27 +21,11 @@ const total = String(services.length).padStart(2, "0");
 
     <div class="mt-16 space-y-4">
       {services.map((s) => (
-        <div class="grid gap-6 rounded-[24px] border border-line bg-surface p-8 md:grid-cols-[0.5fr_1fr] md:p-10">
+        <div class="group grid gap-6 rounded-[24px] border border-line bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(14,17,22,0.3)] md:grid-cols-[0.5fr_1fr] md:p-10">
           <div class="flex flex-col items-start gap-5">
-            {s.numStyle === "tile" && (
-              <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink font-display text-[18px] font-bold text-paper">{s.n}</span>
-            )}
-            {s.numStyle === "outline" && (
-              <span class="font-display text-[56px] font-extrabold leading-none text-transparent [-webkit-text-stroke:1.5px_var(--color-signal)]">{s.n}</span>
-            )}
-            {s.numStyle === "circle" && (
-              <span class="flex h-12 w-12 items-center justify-center rounded-full bg-signal font-display text-[18px] font-bold text-white">{s.n}</span>
-            )}
-            {s.numStyle === "fraction" && (
-              <span class="font-display font-bold leading-none">
-                <span class="text-[44px] text-ink">{s.n}</span><span class="text-[18px] text-slate">/{total}</span>
-              </span>
-            )}
-            {s.numStyle === "pill" && (
-              <span class="inline-flex items-center gap-2 rounded-full border border-signal/25 bg-signal/5 px-3.5 py-1.5 text-[13px] font-semibold text-signal">
-                <span class="h-1.5 w-1.5 rounded-full bg-signal"></span>Service {s.n}
-              </span>
-            )}
+            <span class="font-display font-bold leading-none">
+              <span class="text-[44px] text-signal/30 transition-colors duration-300 group-hover:text-signal/60">{s.n}</span><span class="text-[18px] text-signal/25 transition-colors duration-300 group-hover:text-signal/45">/{total}</span>
+            </span>
             <h2 class="font-display text-[26px] font-semibold text-ink">{s.t}</h2>
           </div>
           <div>
