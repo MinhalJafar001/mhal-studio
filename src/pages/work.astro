@@ -1,14 +1,17 @@
 ---
 import Layout from "../layouts/Layout.astro";
 const projects = [
-  { name: "Profound Publishers", cat: "Website Redesign", result: "A faster, cleaner site that reflects their authority.", img: "1481487196290-c152efe083f5", slug: "profound-publishers" },
-  { name: "Curated Kitchens & Bath", cat: "Brand Identity", result: "A polished identity for a premium remodeler.", img: "1556909212-d5b604d0c90d", slug: "curated-kitchens-bath" },
-  { name: "Dreamerce", cat: "Ad & Visual Design", result: "Scroll-stopping creative built to perform.", img: "1467232004584-a241de8bcf5d", slug: "dreamerce" },
-  { name: "Kids Studio", cat: "Landing Page", result: "A playful, high-converting landing concept.", img: "1503454537195-1dcabb73ffb9", slug: "kids-studio" },
-  { name: "Revive Real Estate", cat: "Ongoing Design", result: "Consistent, on-brand design support at scale.", img: "1560518883-ce09059eeffa", slug: "revive-real-estate" },
-  { name: "Powered Now", cat: "Brand Animation", result: "Motion that brought the brand to life.", img: "1620712943543-bcc4688e7485", slug: "powered-now" },
+  { name: "Profound Publishers", cat: "Website Redesign", result: "A faster, cleaner site that reflects their authority.", img: "/work/profound-publishers.png", slug: "profound-publishers" },
+  { name: "Curated Kitchens & Bath", cat: "Brand Identity", result: "A polished identity for a premium remodeler.", img: "/work/curated-kitchens.png", slug: "curated-kitchens-bath" },
+  { name: "Dreamerce", cat: "Ad & Visual Design", result: "Scroll-stopping creative built to perform.", img: "/work/dreamerce.png", slug: "dreamerce" },
+  { name: "Kids Studio", cat: "Landing Page", result: "A playful, high-converting landing concept.", img: "/work/kids-studio.png", slug: "kids-studio" },
+  // TODO: swap in real project images
+  { name: "Revive Real Estate", cat: "Ongoing Design", result: "Consistent, on-brand design support at scale.", img: unsplash("1560518883-ce09059eeffa"), slug: "revive-real-estate" },
+  { name: "Powered Now", cat: "Brand Animation", result: "Motion that brought the brand to life.", img: unsplash("1620712943543-bcc4688e7485"), slug: "powered-now" },
 ];
-const img = (id) => `https://images.unsplash.com/photo-${id}?w=800&h=560&fit=crop&auto=format&q=80`;
+function unsplash(id) {
+  return `https://images.unsplash.com/photo-${id}?w=800&h=560&fit=crop&auto=format&q=80`;
+}
 ---
 <Layout title="Work — Mhal Studio" description="Selected websites, brands, and design work by Mhal Studio.">
   <section class="mx-auto max-w-6xl px-6 py-16 md:py-24">
@@ -24,7 +27,7 @@ const img = (id) => `https://images.unsplash.com/photo-${id}?w=800&h=560&fit=cro
       {projects.map((p) => (
         <a href={`/work/${p.slug}`} class="group block overflow-hidden rounded-[24px] border border-line bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-40px_rgba(14,17,22,0.35)]">
           <div class="h-[52vw] max-h-[360px] overflow-hidden md:h-[320px]">
-            <img src={img(p.img)} alt={p.name} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <img src={p.img} alt={p.name} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
           </div>
           <div class="flex items-end justify-between gap-4 p-6">
             <div>
