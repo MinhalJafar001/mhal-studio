@@ -15,14 +15,53 @@ const faqs = [
     </div>
     <div class="border-t border-line">
       {faqs.map((f) => (
-        <details class="faq-item group border-b border-line">
+        <details class="faq-item group border-b border-line" data-state="closed">
           <summary class="flex cursor-pointer items-center justify-between gap-6 py-6 text-left [&::-webkit-details-marker]:hidden">
             <span class="text-[19px] font-medium text-ink">{f.q}</span>
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-transform duration-300 group-open:rotate-45 group-open:border-signal group-open:text-signal">+</span>
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-all duration-300 group-data-[state=open]:rotate-45 group-data-[state=open]:border-signal group-data-[state=open]:text-signal">+</span>
           </summary>
-          <p class="pb-6 text-[16px] leading-relaxed text-slate">{f.a}</p>
+          <div class="faq-body overflow-hidden">
+            <p class="pb-6 text-[16px] leading-relaxed text-slate">{f.a}</p>
+          </div>
         </details>
       ))}
     </div>
   </div>
 </section>
+
+<script>
+  const items = [...document.querySelectorAll<HTMLDetailsElement>(".faq-item")];
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const running = new WeakMap<HTMLDetailsElement, Animation>();
+
+  // Animate the answer's height between its current size and open/closed
+  const setOpen = (item: HTMLDetailsElement, open: boolean) => {
+    const body = item.querySelector<HTMLElement>(".faq-body");
+    if (!body) return;
+    const from = item.open ? body.getBoundingClientRect().height : 0;
+    running.get(item)?.cancel();
+    item.dataset.state = open ? "open" : "closed";
+    if (open) item.open = true;
+    const to = open ? body.scrollHeight : 0;
+
+    const anim = body.animate(
+      { height: [`${from}px`, `${to}px`], opacity: [open ? 0 : 1, open ? 1 : 0] },
+      { duration: reduceMotion.matches ? 0 : 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" }
+    );
+    running.set(item, anim);
+    anim.onfinish = () => {
+      if (!open) item.open = false;
+      anim.cancel();
+      running.delete(item);
+    };
+  };
+
+  items.forEach((item) => {
+    item.querySelector("summary")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      const opening = item.dataset.state !== "open";
+      if (opening) items.forEach((other) => other !== item && other.dataset.state === "open" && setOpen(other, false));
+      setOpen(item, opening);
+    });
+  });
+</script>
