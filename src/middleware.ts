@@ -2,7 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 import { SESSION_COOKIE, verifySession } from "./lib/auth";
 
 // Routes that render on demand but must stay reachable without a session
-const PUBLIC_ROUTES = new Set(["/dashboard/login"]);
+const PUBLIC_ROUTES = new Set(["/dashboard/login", "/api/contact"]);
 
 // Deny by default: every on-demand route requires a valid admin session unless allowlisted.
 // Prerendered public pages skip this entirely. Matching on the resolved route pattern (not the

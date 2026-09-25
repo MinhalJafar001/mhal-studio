@@ -19,6 +19,8 @@ export default defineConfig({
     schema: {
       ADMIN_PASSWORD: envField.string({ context: 'server', access: 'secret', optional: true }),
       SESSION_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Postgres connection string, set automatically by Vercel's Neon integration
+      DATABASE_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
 
@@ -27,5 +29,5 @@ export default defineConfig({
   },
 
   // Keep the private admin area out of the sitemap
-  integrations: [sitemap({ filter: (page) => !page.includes('/dashboard') })],
+  integrations: [sitemap({ filter: (page) => !page.includes('/dashboard') && !page.includes('/contact/thanks') })],
 });

@@ -9,11 +9,13 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "db:migrate": "node scripts/db-migrate.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
     "@astrojs/vercel": "^11.0.11",
+    "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.3",
     "lenis": "^1.3.26",
