@@ -1,0 +1,9 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import EmptyState from "../../components/dashboard/EmptyState.astro";
+
+export const prerender = false;
+---
+<DashboardLayout title="Leads">
+  <EmptyState text="Your lead list, statuses, and notes will live here." />
+</DashboardLayout>

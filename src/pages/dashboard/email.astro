@@ -1,0 +1,9 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import EmptyState from "../../components/dashboard/EmptyState.astro";
+
+export const prerender = false;
+---
+<DashboardLayout title="Email">
+  <EmptyState text="Outreach, templates, and replies will live here." />
+</DashboardLayout>

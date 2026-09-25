@@ -1,0 +1,90 @@
+---
+import "../../styles/global.css";
+import { SESSION_COOKIE, SESSION_MAX_AGE, authConfigured, checkPassword, createSession, verifySession } from "../../lib/auth";
+
+export const prerender = false;
+
+// Only allow redirects back into the dashboard (blocks open redirects like //evil.com)
+const safeNext = (value: string | null) =>
+  value && value.startsWith("/dashboard") && !value.startsWith("/dashboard/login") ? value : "/dashboard";
+
+let next = safeNext(Astro.url.searchParams.get("next"));
+let error = "";
+
+if (await verifySession(Astro.cookies.get(SESSION_COOKIE)?.value)) {
+  return Astro.redirect(next);
+}
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  next = safeNext(String(form.get("next") ?? ""));
+  if (!authConfigured()) {
+    error = "Login isn't configured yet. Set ADMIN_PASSWORD and SESSION_SECRET (32+ characters).";
+    Astro.response.status = 503;
+  } else if (await checkPassword(String(form.get("password") ?? ""))) {
+    Astro.cookies.set(SESSION_COOKIE, await createSession(), {
+      httpOnly: true,
+      secure: import.meta.env.PROD,
+      sameSite: "lax",
+      path: "/dashboard",
+      maxAge: SESSION_MAX_AGE,
+    });
+    return Astro.redirect(next, 303);
+  } else {
+    await new Promise((r) => setTimeout(r, 800)); // slow down guessing
+    error = "Incorrect password.";
+    Astro.response.status = 401;
+  }
+}
+
+Astro.response.headers.set("Cache-Control", "no-store");
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800&display=swap" />
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Sign in — Mhal Studio Admin</title>
+  </head>
+  <body class="flex min-h-dvh items-center justify-center bg-paper px-4 text-[14px] text-ink">
+    <main class="w-full max-w-sm">
+      <div class="flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-[10px] bg-ink font-display text-[14px] font-semibold text-paper">MH<span class="text-signal-ondark">.</span></span>
+        <span class="font-display text-[17px] font-semibold">Mhal Studio</span>
+        <span class="rounded-full bg-signal/10 px-2 py-0.5 text-[11px] font-medium text-signal">Admin</span>
+      </div>
+
+      <form method="POST" class="mt-6 rounded-[16px] border border-line bg-surface p-6">
+        <h1 class="font-display text-[22px] font-semibold">Sign in</h1>
+        <p class="mt-1 text-slate">Enter the admin password to continue.</p>
+
+        <input type="hidden" name="next" value={next} />
+        <label for="password" class="mt-5 block font-medium">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          autofocus
+          autocomplete="current-password"
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={error ? "login-error" : undefined}
+          class="mt-1.5 w-full rounded-[10px] border border-line bg-paper px-3.5 py-2.5 outline-none transition-colors focus:border-signal focus:bg-surface"
+        />
+        {error && <p id="login-error" role="alert" class="mt-2 text-[13px] text-red-700">{error}</p>}
+
+        <button type="submit" class="mt-5 w-full rounded-full bg-signal px-5 py-2.5 font-medium text-white transition-colors hover:bg-signal-hover">
+          Sign in
+        </button>
+      </form>
+
+      <a href="/" class="mt-5 inline-block text-slate transition-colors hover:text-ink">← Back to site</a>
+    </main>
+  </body>
+</html>

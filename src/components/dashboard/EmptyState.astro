@@ -1,0 +1,10 @@
+---
+const { heading = "Coming soon", text } = Astro.props;
+---
+<div class="flex min-h-[320px] flex-col items-center justify-center rounded-[16px] border border-dashed border-line bg-surface px-6 py-12 text-center">
+  <span class="flex h-11 w-11 items-center justify-center rounded-[12px] bg-signal/10 text-signal">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+  </span>
+  <h2 class="mt-4 font-display text-[20px] font-semibold text-ink">{heading}</h2>
+  {text && <p class="mt-1.5 max-w-sm text-slate">{text}</p>}
+</div>
