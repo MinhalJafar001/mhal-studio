@@ -54,6 +54,18 @@ const schema = {
 
     <!-- JSON-LD schema -->
     <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+
+    <!-- Crisp chat (async, public pages only) -->
+    <script is:inline>
+      window.$crisp = [];
+      window.CRISP_WEBSITE_ID = "6760fba7-af86-4657-918b-d6988833390b";
+      (function () {
+        var s = document.createElement("script");
+        s.src = "https://client.crisp.chat/l.js";
+        s.async = true;
+        document.head.appendChild(s);
+      })();
+    </script>
   </head>
   <body class="min-h-screen bg-paper text-ink">
     <Header />
@@ -68,6 +80,8 @@ const schema = {
           duration: 1.1,
           easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
           smoothWheel: true,
+          // Let the Crisp chat window scroll natively
+          prevent: (node) => !!node.closest?.("#crisp-chatbox"),
         });
         function raf(time) {
           lenis.raf(time);
