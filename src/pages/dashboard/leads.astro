@@ -1,9 +1,138 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
+import { getSql } from "../../lib/db";
 
 export const prerender = false;
+
+type Lead = {
+  id: string;
+  source: "website" | "manual";
+  business_name: string | null;
+  name: string | null;
+  position: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+};
+
+const SOURCES = [
+  { key: "all", label: "All" },
+  { key: "website", label: "Website" },
+  { key: "manual", label: "Manual" },
+] as const;
+
+const params = Astro.url.searchParams;
+const source = SOURCES.some((s) => s.key === params.get("source")) ? params.get("source")! : "all";
+const q = (params.get("q") ?? "").trim().slice(0, 100);
+
+const sql = getSql();
+let leads: Lead[] = [];
+let counts: Record<string, number> = { all: 0, website: 0, manual: 0 };
+
+if (sql) {
+  const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+  const [rows, totals] = await Promise.all([
+    sql.query(
+      `SELECT id, source, business_name, name, position, email, phone, website
+       FROM leads
+       WHERE ($1 = 'all' OR source = $1)
+         AND ($2 = '' OR business_name ILIKE $3 OR name ILIKE $3 OR email ILIKE $3 OR position ILIKE $3)
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1000`,
+      [source, q, like]
+    ),
+    sql`SELECT source, count(*)::int AS n FROM leads GROUP BY source`,
+  ]);
+  leads = rows as Lead[];
+  for (const t of totals as { source: string; n: number }[]) {
+    counts[t.source] = t.n;
+    counts.all += t.n;
+  }
+}
+
+const filterHref = (key: string) => {
+  const p = new URLSearchParams();
+  if (key !== "all") p.set("source", key);
+  if (q) p.set("q", q);
+  const s = p.toString();
+  return `/dashboard/leads${s ? `?${s}` : ""}`;
+};
+const websiteHref = (w: string) => (/^https?:\/\//i.test(w) ? w : `https://${w}`);
+const websiteLabel = (w: string) => w.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
 ---
 <DashboardLayout title="Leads">
-  <EmptyState text="Your lead list, statuses, and notes will live here." />
+  {!sql ? (
+    <EmptyState heading="Database not connected" text="Set DATABASE_URL to see your leads here." />
+  ) : (
+    <div class="space-y-4">
+      <!-- Filters + search -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <nav class="flex gap-1 rounded-full border border-line bg-surface p-1" aria-label="Filter by source">
+          {SOURCES.map((s) => (
+            <a
+              href={filterHref(s.key)}
+              aria-current={source === s.key ? "page" : undefined}
+              class={`rounded-full px-3.5 py-1.5 font-medium transition-colors ${source === s.key ? "bg-ink text-paper" : "text-slate hover:text-ink"}`}
+            >
+              {s.label} <span class={source === s.key ? "text-paper/60" : "text-slate/70"}>{counts[s.key]}</span>
+            </a>
+          ))}
+        </nav>
+        <form method="GET" class="flex w-full gap-2 sm:w-auto">
+          {source !== "all" && <input type="hidden" name="source" value={source} />}
+          <input
+            type="search"
+            name="q"
+            value={q}
+            placeholder="Search business, name, email…"
+            aria-label="Search leads"
+            class="w-full rounded-full border border-line bg-surface px-4 py-2 outline-none transition-colors focus:border-signal sm:w-72"
+          />
+        </form>
+      </div>
+
+      {leads.length === 0 ? (
+        <EmptyState
+          heading={q || source !== "all" ? "No matching leads" : "No leads yet"}
+          text={q || source !== "all" ? "Try a different filter or search." : "Enquiries from the contact form and rows from your Google Sheet will appear here."}
+        />
+      ) : (
+        <div class="overflow-x-auto rounded-[14px] border border-line bg-surface">
+          <table class="w-full min-w-[900px] text-left text-[13px]">
+            <thead class="border-b border-line bg-paper/60 text-[12px] uppercase tracking-wide text-slate">
+              <tr>
+                <th class="px-4 py-3 font-medium">Source</th>
+                <th class="px-4 py-3 font-medium">Business Name</th>
+                <th class="px-4 py-3 font-medium">Contact Person</th>
+                <th class="px-4 py-3 font-medium">Position</th>
+                <th class="px-4 py-3 font-medium">Email</th>
+                <th class="px-4 py-3 font-medium">Phone</th>
+                <th class="px-4 py-3 font-medium">Website</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+              {leads.map((l) => (
+                <tr class="transition-colors hover:bg-paper/60">
+                  <td class="px-4 py-3">
+                    <span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${l.source === "website" ? "bg-signal/10 text-signal" : "bg-ink/5 text-slate"}`}>
+                      {l.source === "website" ? "Website" : "Manual"}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 font-medium text-ink">{l.business_name ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="px-4 py-3">{l.name ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="px-4 py-3 text-slate">{l.position ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="px-4 py-3">{l.email ? <a href={`mailto:${l.email}`} class="text-signal hover:underline">{l.email}</a> : <span class="text-slate/50">—</span>}</td>
+                  <td class="whitespace-nowrap px-4 py-3">{l.phone ? <a href={telHref(l.phone)} class="text-signal hover:underline">{l.phone}</a> : <span class="text-slate/50">—</span>}</td>
+                  <td class="max-w-[220px] truncate px-4 py-3">{l.website ? <a href={websiteHref(l.website)} target="_blank" rel="noopener noreferrer" class="text-signal hover:underline">{websiteLabel(l.website)}</a> : <span class="text-slate/50">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {leads.length === 1000 && <p class="text-[12px] text-slate">Showing the 1,000 most recent. Use search to narrow down.</p>}
+    </div>
+  )}
 </DashboardLayout>

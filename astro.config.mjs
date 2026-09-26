@@ -21,6 +21,8 @@ export default defineConfig({
       SESSION_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Postgres connection string, set automatically by Vercel's Neon integration
       DATABASE_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Shared key the Google Sheet script sends to /api/leads/import
+      SHEET_SYNC_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
 

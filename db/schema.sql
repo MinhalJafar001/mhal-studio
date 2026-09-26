@@ -14,3 +14,23 @@ CREATE TABLE IF NOT EXISTS leads (
 );
 
 CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads (created_at DESC);
+
+-- v2: business details + Google Sheet sync
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS business_name text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS position text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS website text;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+-- Stable ID of the sheet row a lead came from, so re-syncing updates instead of duplicating
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS external_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS leads_external_id_key ON leads (external_id);
+
+-- Sheet rows may only have a business name, or no email
+ALTER TABLE leads ALTER COLUMN name DROP NOT NULL;
+ALTER TABLE leads ALTER COLUMN email DROP NOT NULL;
+
+-- Source is 'website' (contact form) or 'manual' (Google Sheet / added by hand)
+UPDATE leads SET source = 'website' WHERE source = 'contact_form';
+ALTER TABLE leads ALTER COLUMN source SET DEFAULT 'website';
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_source_check;
+ALTER TABLE leads ADD CONSTRAINT leads_source_check CHECK (source IN ('website', 'manual'));

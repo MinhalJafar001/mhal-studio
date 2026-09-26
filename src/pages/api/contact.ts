@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const lead = {
     name: field("name"),
+    businessName: field("business_name"),
     email: field("email").toLowerCase(),
     phone: field("phone"),
     service: field("service"),
@@ -43,6 +44,7 @@ export const POST: APIRoute = async ({ request }) => {
   };
 
   if (!lead.name || lead.name.length > 120) return fail(request, 400, "Please enter your name.");
+  if (lead.businessName.length > 160) return fail(request, 400, "That business name looks too long.");
   if (!EMAIL_RE.test(lead.email) || lead.email.length > 254) return fail(request, 400, "Please enter a valid email address.");
   if (lead.phone.length > 40) return fail(request, 400, "That phone number looks too long.");
   if (!SERVICE_OPTIONS.includes(lead.service)) return fail(request, 400, "Please choose a service.");
@@ -56,8 +58,8 @@ export const POST: APIRoute = async ({ request }) => {
 
   try {
     await sql`
-      INSERT INTO leads (name, email, phone, service, message)
-      VALUES (${lead.name}, ${lead.email}, ${lead.phone || null}, ${lead.service}, ${lead.message || null})
+      INSERT INTO leads (source, name, business_name, email, phone, service, message)
+      VALUES ('website', ${lead.name}, ${lead.businessName || null}, ${lead.email}, ${lead.phone || null}, ${lead.service}, ${lead.message || null})
     `;
   } catch (err) {
     console.error("[contact] failed to store lead", err);
