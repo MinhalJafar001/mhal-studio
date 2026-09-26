@@ -7,7 +7,7 @@ import { OUTREACH_FROM } from "astro:env/server";
 import { getSql } from "../../../lib/db";
 import { emailConfigured, sendEmail } from "../../../lib/email";
 import { STATUSES, ago, isStatus, statusLabel, telHref, websiteHref, websiteLabel } from "../../../lib/leads";
-import { EMAIL, PHONE } from "../../../lib/site";
+import { PHONE } from "../../../lib/site";
 
 export const prerender = false;
 
@@ -123,7 +123,8 @@ const title = lead.business_name ?? lead.name ?? lead.email ?? "Lead";
 const sent = Astro.url.searchParams.get("sent") === "1";
 const canEmail = emailConfigured();
 const firstName = lead.name?.split(" ")[0] ?? "there";
-const emailBody = draft?.body ?? `Hi ${firstName},\n\n\n\nBest regards,\nMhal Studio\n${EMAIL} · ${PHONE}\nmhalstudio.com`;
+const senderAddress = OUTREACH_FROM!.match(/<([^>]+)>/)?.[1] ?? OUTREACH_FROM!;
+const emailBody = draft?.body ?? `Hi ${firstName},\n\n\n\nBest regards,\nMhal Studio\n${senderAddress} · ${PHONE}\nmhalstudio.com`;
 const nonce = crypto.randomUUID();
 const subtitle = [lead.business_name ? lead.name : null, lead.position].filter(Boolean).join(" · ");
 const details = [

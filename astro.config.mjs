@@ -28,7 +28,7 @@ export default defineConfig({
       ALERT_EMAIL_TO: envField.string({ context: 'server', access: 'secret', optional: true }),
       ALERT_EMAIL_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <alerts@mhalstudio.com>' }),
       // Sender for emails written to leads from the dashboard; replies go to this address
-      OUTREACH_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <hello@mhalstudio.com>' }),
+      OUTREACH_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <connect@mhalstudio.com>' }),
     },
   },
 
