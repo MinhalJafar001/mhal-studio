@@ -2,10 +2,11 @@
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
 import { getSql } from "../../lib/db";
+import { STATUSES, ago } from "../../lib/leads";
 
 export const prerender = false;
 
-type Stats = { total: number; week: number; website: number; manual: number; email: number; phone: number; site: number };
+type Stats = { total: number; week: number; website: number; manual: number; email: number; phone: number; site: number } & Record<string, number>;
 type Enquiry = { id: string; name: string | null; business_name: string | null; email: string | null; service: string | null; created_at: Date };
 
 const sql = getSql();
@@ -21,7 +22,11 @@ if (sql) {
           count(*) FILTER (WHERE source = 'manual')::int AS manual,
           count(email)::int AS email,
           count(phone)::int AS phone,
-          count(website)::int AS site
+          count(website)::int AS site,
+          count(*) FILTER (WHERE status = 'new')::int AS new,
+          count(*) FILTER (WHERE status = 'contacted')::int AS contacted,
+          count(*) FILTER (WHERE status = 'won')::int AS won,
+          count(*) FILTER (WHERE status = 'lost')::int AS lost
         FROM leads`,
     sql`SELECT id, name, business_name, email, service, created_at FROM leads
         WHERE source = 'website' ORDER BY created_at DESC LIMIT 5`,
@@ -48,15 +53,6 @@ const reach = stats
   : [];
 
 const pct = (n: number) => (stats?.total ? Math.round((n / stats.total) * 100) : 0);
-
-const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-function ago(date: Date) {
-  const mins = Math.round((new Date(date).getTime() - Date.now()) / 60000);
-  if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
-  const hours = Math.round(mins / 60);
-  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
-  return rtf.format(Math.round(hours / 24), "day");
-}
 ---
 <DashboardLayout title="Overview">
   {!stats ? (
@@ -72,6 +68,27 @@ function ago(date: Date) {
         ))}
       </div>
 
+      <!-- Pipeline -->
+      <section class="rounded-[14px] border border-line bg-surface p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-[16px] font-semibold">Pipeline</h2>
+          <span class="text-[13px] text-slate">{stats.total ? Math.round(((stats.total - stats.new) / stats.total) * 100) : 0}% worked</span>
+        </div>
+        <div class="mt-3 flex h-2 overflow-hidden rounded-full bg-paper" aria-hidden="true">
+          {STATUSES.map((s) => (
+            <div class={s.bar} style={`width: ${pct(stats![s.key])}%`}></div>
+          ))}
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {STATUSES.map((s) => (
+            <a href={`/dashboard/leads?status=${s.key}`} class="rounded-[10px] px-3 py-2 transition-colors hover:bg-paper">
+              <span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${s.badge}`}>{s.label}</span>
+              <p class="mt-1 font-display text-[22px] font-bold leading-none">{stats![s.key].toLocaleString("en-US")}</p>
+            </a>
+          ))}
+        </div>
+      </section>
+
       <div class="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <!-- Latest website enquiries -->
         <section class="rounded-[14px] border border-line bg-surface">
@@ -86,7 +103,7 @@ function ago(date: Date) {
               {enquiries.map((e) => (
                 <li class="flex items-center justify-between gap-4 px-4 py-3">
                   <div class="min-w-0">
-                    <p class="truncate font-medium">{e.name ?? e.business_name ?? e.email}</p>
+                    <a href={`/dashboard/leads/${e.id}`} class="block truncate font-medium hover:text-signal hover:underline">{e.name ?? e.business_name ?? e.email}</a>
                     <p class="truncate text-[13px] text-slate">{[e.business_name && e.name ? e.business_name : null, e.service].filter(Boolean).join(" · ") || e.email}</p>
                   </div>
                   <span class="shrink-0 text-[12px] text-slate">{ago(e.created_at)}</span>

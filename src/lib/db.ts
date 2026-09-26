@@ -10,5 +10,3 @@ export function getSql() {
   client ??= neon(DATABASE_URL);
   return client;
 }
-
-export const LEAD_STATUSES = ["new", "contacted", "won", "lost"] as const;

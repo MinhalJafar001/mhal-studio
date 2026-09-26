@@ -2,13 +2,16 @@
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
 import SourceBadge from "../../components/dashboard/SourceBadge.astro";
+import StatusBadge from "../../components/dashboard/StatusBadge.astro";
 import { getSql } from "../../lib/db";
+import { STATUSES, isStatus, telHref, websiteHref, websiteLabel } from "../../lib/leads";
 
 export const prerender = false;
 
 type Lead = {
   id: string;
   source: "website" | "manual";
+  status: string;
   business_name: string | null;
   name: string | null;
   position: string | null;
@@ -27,6 +30,7 @@ const params = Astro.url.searchParams;
 const source = SOURCES.some((s) => s.key === params.get("source")) ? params.get("source")! : "all";
 const q = (params.get("q") ?? "").trim().slice(0, 100);
 const added = params.get("added") === "1";
+const status = isStatus(params.get("status")) ? params.get("status")! : "";
 
 const sql = getSql();
 let leads: Lead[] = [];
@@ -36,13 +40,14 @@ if (sql) {
   const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
   const [rows, totals] = await Promise.all([
     sql.query(
-      `SELECT id, source, business_name, name, position, email, phone, website
+      `SELECT id, source, status, business_name, name, position, email, phone, website
        FROM leads
        WHERE ($1 = 'all' OR source = $1)
          AND ($2 = '' OR business_name ILIKE $3 OR name ILIKE $3 OR email ILIKE $3 OR position ILIKE $3)
+         AND ($4 = '' OR status = $4)
        ORDER BY created_at DESC, id DESC
        LIMIT 1000`,
-      [source, q, like]
+      [source, q, like, status]
     ),
     sql`SELECT source, count(*)::int AS n FROM leads GROUP BY source`,
   ]);
@@ -57,12 +62,11 @@ const filterHref = (key: string) => {
   const p = new URLSearchParams();
   if (key !== "all") p.set("source", key);
   if (q) p.set("q", q);
+  if (status) p.set("status", status);
   const s = p.toString();
   return `/dashboard/leads${s ? `?${s}` : ""}`;
 };
-const websiteHref = (w: string) => (/^https?:\/\//i.test(w) ? w : `https://${w}`);
-const websiteLabel = (w: string) => w.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
-const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
+const filtered = Boolean(q || status || source !== "all");
 ---
 <DashboardLayout title="Leads">
   {!sql ? (
@@ -83,8 +87,12 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
           ))}
         </nav>
         <div class="flex w-full gap-2 sm:w-auto">
-          <form method="GET" class="flex-1 sm:flex-none">
+          <form method="GET" data-filter-form class="flex flex-1 gap-2 sm:flex-none">
             {source !== "all" && <input type="hidden" name="source" value={source} />}
+            <select name="status" aria-label="Filter by status" class="rounded-full border border-line bg-surface px-3 py-2 outline-none transition-colors focus:border-signal">
+              <option value="">Any status</option>
+              {STATUSES.map((s) => <option value={s.key} selected={status === s.key}>{s.label}</option>)}
+            </select>
             <input
               type="search"
               name="q"
@@ -106,8 +114,8 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
 
       {leads.length === 0 ? (
         <EmptyState
-          heading={q || source !== "all" ? "No matching leads" : "No leads yet"}
-          text={q || source !== "all" ? "Try a different filter or search." : "Enquiries from the contact form and rows from your Google Sheet will appear here."}
+          heading={filtered ? "No matching leads" : "No leads yet"}
+          text={filtered ? "Try a different filter or search." : "Enquiries from the contact form and rows from your Google Sheet will appear here."}
         />
       ) : (
         <div class="overflow-x-auto rounded-[14px] border border-line bg-surface">
@@ -115,6 +123,7 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
             <thead class="border-b border-line bg-paper/60 text-[12px] uppercase tracking-wide text-slate">
               <tr>
                 <th class="px-4 py-3 font-medium">Source</th>
+                <th class="px-4 py-3 font-medium">Status</th>
                 <th class="px-4 py-3 font-medium">Business Name</th>
                 <th class="px-4 py-3 font-medium">Contact Person</th>
                 <th class="px-4 py-3 font-medium">Position</th>
@@ -127,7 +136,10 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
               {leads.map((l) => (
                 <tr class="transition-colors hover:bg-paper/60">
                   <td class="px-4 py-3"><SourceBadge source={l.source} /></td>
-                  <td class="whitespace-nowrap px-4 py-3 font-medium text-ink">{l.business_name ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="px-4 py-3"><StatusBadge status={l.status} /></td>
+                  <td class="whitespace-nowrap px-4 py-3 font-medium text-ink">
+                    <a href={`/dashboard/leads/${l.id}`} class="hover:text-signal hover:underline">{l.business_name ?? l.name ?? l.email}</a>
+                  </td>
                   <td class="whitespace-nowrap px-4 py-3">{l.name ?? <span class="text-slate/50">—</span>}</td>
                   <td class="px-4 py-3 text-slate">{l.position ?? <span class="text-slate/50">—</span>}</td>
                   <td class="px-4 py-3">{l.email ? <a href={`mailto:${l.email}`} class="text-signal hover:underline">{l.email}</a> : <span class="text-slate/50">—</span>}</td>
@@ -143,3 +155,10 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
     </div>
   )}
 </DashboardLayout>
+
+<script>
+  // Apply the status filter as soon as it changes (search still submits on Enter)
+  document.querySelector<HTMLFormElement>("[data-filter-form]")
+    ?.querySelector("select")
+    ?.addEventListener("change", (e) => (e.target as HTMLSelectElement).form?.submit());
+</script>

@@ -34,3 +34,16 @@ UPDATE leads SET source = 'website' WHERE source = 'contact_form';
 ALTER TABLE leads ALTER COLUMN source SET DEFAULT 'website';
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_source_check;
 ALTER TABLE leads ADD CONSTRAINT leads_source_check CHECK (source IN ('website', 'manual'));
+
+-- v3: per-lead activity timeline (notes now; status changes logged automatically; emails/calls later)
+CREATE TABLE IF NOT EXISTS lead_activity (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  lead_id     bigint NOT NULL REFERENCES leads (id) ON DELETE CASCADE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  kind        text NOT NULL CHECK (kind IN ('note', 'status', 'email', 'call')),
+  body        text,
+  meta        jsonb
+);
+
+CREATE INDEX IF NOT EXISTS lead_activity_lead_idx ON lead_activity (lead_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS leads_status_idx ON leads (status);

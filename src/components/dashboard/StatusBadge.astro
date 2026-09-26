@@ -1,0 +1,7 @@
+---
+import { STATUSES } from "../../lib/leads";
+
+const { status } = Astro.props;
+const s = STATUSES.find((x) => x.key === status) ?? STATUSES[0];
+---
+<span class={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${s.badge}`}>{s.label}</span>
