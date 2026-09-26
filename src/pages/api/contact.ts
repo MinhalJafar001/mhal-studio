@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSql } from "../../lib/db";
+import { sendLeadAlert } from "../../lib/email";
 import { HONEYPOT_FIELD, SERVICE_OPTIONS } from "../../lib/contact";
 
 export const prerender = false;
@@ -56,15 +57,21 @@ export const POST: APIRoute = async ({ request }) => {
     return fail(request, 503, "Sorry, the form isn't available right now.");
   }
 
+  let id: string;
   try {
-    await sql`
+    const rows = (await sql`
       INSERT INTO leads (source, name, business_name, email, phone, service, message)
       VALUES ('website', ${lead.name}, ${lead.businessName || null}, ${lead.email}, ${lead.phone || null}, ${lead.service}, ${lead.message || null})
-    `;
+      RETURNING id
+    `) as { id: string }[];
+    id = rows[0].id;
   } catch (err) {
     console.error("[contact] failed to store lead", err);
     return fail(request, 500, "Sorry, something went wrong sending your enquiry.");
   }
+
+  // Awaited so the serverless function doesn't exit mid-send; failures are logged, never surfaced
+  await sendLeadAlert({ id, ...lead }, new URL(request.url).origin);
 
   return succeed(request);
 };

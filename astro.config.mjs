@@ -23,6 +23,10 @@ export default defineConfig({
       DATABASE_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Shared key the Google Sheet script sends to /api/leads/import
       SHEET_SYNC_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // New-lead email alerts via Resend. Alerts are skipped (lead still saved) if these aren't set.
+      RESEND_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ALERT_EMAIL_TO: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ALERT_EMAIL_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <alerts@mhalstudio.com>' }),
     },
   },
 
