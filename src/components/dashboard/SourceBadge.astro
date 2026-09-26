@@ -1,0 +1,7 @@
+---
+const { source } = Astro.props;
+const website = source === "website";
+---
+<span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${website ? "bg-signal/10 text-signal" : "bg-ink/5 text-slate"}`}>
+  {website ? "Website" : "Manual"}
+</span>

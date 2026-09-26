@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
+import SourceBadge from "../../components/dashboard/SourceBadge.astro";
 import { getSql } from "../../lib/db";
 
 export const prerender = false;
@@ -25,6 +26,7 @@ const SOURCES = [
 const params = Astro.url.searchParams;
 const source = SOURCES.some((s) => s.key === params.get("source")) ? params.get("source")! : "all";
 const q = (params.get("q") ?? "").trim().slice(0, 100);
+const added = params.get("added") === "1";
 
 const sql = getSql();
 let leads: Lead[] = [];
@@ -80,18 +82,27 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
             </a>
           ))}
         </nav>
-        <form method="GET" class="flex w-full gap-2 sm:w-auto">
-          {source !== "all" && <input type="hidden" name="source" value={source} />}
-          <input
-            type="search"
-            name="q"
-            value={q}
-            placeholder="Search business, name, email…"
-            aria-label="Search leads"
-            class="w-full rounded-full border border-line bg-surface px-4 py-2 outline-none transition-colors focus:border-signal sm:w-72"
-          />
-        </form>
+        <div class="flex w-full gap-2 sm:w-auto">
+          <form method="GET" class="flex-1 sm:flex-none">
+            {source !== "all" && <input type="hidden" name="source" value={source} />}
+            <input
+              type="search"
+              name="q"
+              value={q}
+              placeholder="Search business, name, email…"
+              aria-label="Search leads"
+              class="w-full rounded-full border border-line bg-surface px-4 py-2 outline-none transition-colors focus:border-signal sm:w-72"
+            />
+          </form>
+          <a href="/dashboard/leads/new" class="flex shrink-0 items-center gap-1.5 rounded-full bg-signal px-4 py-2 font-medium text-white transition-colors hover:bg-signal-hover">
+            <span aria-hidden="true" class="text-[16px] leading-none">+</span> Add lead
+          </a>
+        </div>
       </div>
+
+      {added && (
+        <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">Lead added.</p>
+      )}
 
       {leads.length === 0 ? (
         <EmptyState
@@ -115,13 +126,9 @@ const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
             <tbody class="divide-y divide-line">
               {leads.map((l) => (
                 <tr class="transition-colors hover:bg-paper/60">
-                  <td class="px-4 py-3">
-                    <span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${l.source === "website" ? "bg-signal/10 text-signal" : "bg-ink/5 text-slate"}`}>
-                      {l.source === "website" ? "Website" : "Manual"}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 font-medium text-ink">{l.business_name ?? <span class="text-slate/50">—</span>}</td>
-                  <td class="px-4 py-3">{l.name ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="px-4 py-3"><SourceBadge source={l.source} /></td>
+                  <td class="whitespace-nowrap px-4 py-3 font-medium text-ink">{l.business_name ?? <span class="text-slate/50">—</span>}</td>
+                  <td class="whitespace-nowrap px-4 py-3">{l.name ?? <span class="text-slate/50">—</span>}</td>
                   <td class="px-4 py-3 text-slate">{l.position ?? <span class="text-slate/50">—</span>}</td>
                   <td class="px-4 py-3">{l.email ? <a href={`mailto:${l.email}`} class="text-signal hover:underline">{l.email}</a> : <span class="text-slate/50">—</span>}</td>
                   <td class="whitespace-nowrap px-4 py-3">{l.phone ? <a href={telHref(l.phone)} class="text-signal hover:underline">{l.phone}</a> : <span class="text-slate/50">—</span>}</td>

@@ -48,7 +48,7 @@ const path = Astro.url.pathname.replace(/\/$/, "");
 
         <nav class="flex-1 space-y-0.5 overflow-y-auto p-3" aria-label="Dashboard">
           {nav.map((item) => {
-            const active = path === item.href;
+            const active = path === item.href || path.startsWith(`${item.href}/`);
             return (
               <a
                 href={item.href}

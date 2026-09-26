@@ -1,9 +1,120 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
+import { getSql } from "../../lib/db";
 
 export const prerender = false;
+
+type Stats = { total: number; week: number; website: number; manual: number; email: number; phone: number; site: number };
+type Enquiry = { id: string; name: string | null; business_name: string | null; email: string | null; service: string | null; created_at: Date };
+
+const sql = getSql();
+let stats: Stats | undefined;
+let enquiries: Enquiry[] = [];
+
+if (sql) {
+  const [statRows, recent] = await Promise.all([
+    sql`SELECT
+          count(*)::int AS total,
+          count(*) FILTER (WHERE created_at >= now() - interval '7 days')::int AS week,
+          count(*) FILTER (WHERE source = 'website')::int AS website,
+          count(*) FILTER (WHERE source = 'manual')::int AS manual,
+          count(email)::int AS email,
+          count(phone)::int AS phone,
+          count(website)::int AS site
+        FROM leads`,
+    sql`SELECT id, name, business_name, email, service, created_at FROM leads
+        WHERE source = 'website' ORDER BY created_at DESC LIMIT 5`,
+  ]);
+  stats = (statRows as Stats[])[0];
+  enquiries = recent as Enquiry[];
+}
+
+const cards = stats
+  ? [
+      { label: "Total leads", value: stats.total, href: "/dashboard/leads" },
+      { label: "Added this week", value: stats.week, href: "/dashboard/leads" },
+      { label: "From website", value: stats.website, href: "/dashboard/leads?source=website" },
+      { label: "Manual", value: stats.manual, href: "/dashboard/leads?source=manual" },
+    ]
+  : [];
+
+const reach = stats
+  ? [
+      { label: "Email", value: stats.email },
+      { label: "Phone", value: stats.phone },
+      { label: "Website", value: stats.site },
+    ]
+  : [];
+
+const pct = (n: number) => (stats?.total ? Math.round((n / stats.total) * 100) : 0);
+
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+function ago(date: Date) {
+  const mins = Math.round((new Date(date).getTime() - Date.now()) / 60000);
+  if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
+  const hours = Math.round(mins / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
 ---
 <DashboardLayout title="Overview">
-  <EmptyState text="A snapshot of leads, calls, and emails will live here." />
+  {!stats ? (
+    <EmptyState heading="Database not connected" text="Set DATABASE_URL to see your numbers here." />
+  ) : (
+    <div class="space-y-5">
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {cards.map((c) => (
+          <a href={c.href} class="rounded-[14px] border border-line bg-surface p-4 transition-colors hover:border-signal/30">
+            <p class="text-slate">{c.label}</p>
+            <p class="mt-1 font-display text-[28px] font-bold leading-none">{c.value.toLocaleString("en-US")}</p>
+          </a>
+        ))}
+      </div>
+
+      <div class="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <!-- Latest website enquiries -->
+        <section class="rounded-[14px] border border-line bg-surface">
+          <div class="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 class="font-display text-[16px] font-semibold">Latest website enquiries</h2>
+            <a href="/dashboard/leads?source=website" class="text-[13px] text-signal hover:underline">View all</a>
+          </div>
+          {enquiries.length === 0 ? (
+            <p class="px-4 py-8 text-center text-slate">No website enquiries yet. They'll show up here as soon as someone uses the contact form.</p>
+          ) : (
+            <ul class="divide-y divide-line">
+              {enquiries.map((e) => (
+                <li class="flex items-center justify-between gap-4 px-4 py-3">
+                  <div class="min-w-0">
+                    <p class="truncate font-medium">{e.name ?? e.business_name ?? e.email}</p>
+                    <p class="truncate text-[13px] text-slate">{[e.business_name && e.name ? e.business_name : null, e.service].filter(Boolean).join(" · ") || e.email}</p>
+                  </div>
+                  <span class="shrink-0 text-[12px] text-slate">{ago(e.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <!-- Contact coverage -->
+        <section class="rounded-[14px] border border-line bg-surface p-4">
+          <h2 class="font-display text-[16px] font-semibold">How you can reach them</h2>
+          <p class="mt-0.5 text-[13px] text-slate">Leads with each contact detail on file.</p>
+          <ul class="mt-4 space-y-3.5">
+            {reach.map((r) => (
+              <li>
+                <div class="flex justify-between text-[13px]">
+                  <span class="font-medium">{r.label}</span>
+                  <span class="text-slate">{r.value} of {stats.total} · {pct(r.value)}%</span>
+                </div>
+                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-paper">
+                  <div class="h-full rounded-full bg-signal" style={`width: ${pct(r.value)}%`}></div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  )}
 </DashboardLayout>
