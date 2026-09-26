@@ -13,7 +13,48 @@ type LeadAlert = {
 const escape = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+export const emailConfigured = () => Boolean(RESEND_API_KEY);
 export const alertsConfigured = () => Boolean(RESEND_API_KEY && ALERT_EMAIL_TO);
+
+type SendArgs = {
+  from: string;
+  to: string | string[];
+  subject: string;
+  text: string;
+  html?: string;
+  replyTo?: string;
+  idempotencyKey?: string;
+};
+type SendResult = { ok: true; id: string } | { ok: false; error: string };
+
+// Sends one email through Resend. Never throws; returns a readable error instead.
+export async function sendEmail(args: SendArgs): Promise<SendResult> {
+  if (!RESEND_API_KEY) return { ok: false, error: "Email sending isn't configured (RESEND_API_KEY missing)." };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+        ...(args.idempotencyKey ? { "Idempotency-Key": args.idempotencyKey } : {}),
+      },
+      body: JSON.stringify({
+        from: args.from,
+        to: args.to,
+        subject: args.subject.replace(/\s+/g, " ").trim(),
+        text: args.text,
+        ...(args.html ? { html: args.html } : {}),
+        ...(args.replyTo ? { reply_to: args.replyTo } : {}),
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: body.message || `Resend returned ${res.status}` };
+    return { ok: true, id: body.id };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
+  }
+}
 
 // Emails a new-website-lead alert via Resend. Never throws: a failed alert must not lose the lead.
 export async function sendLeadAlert(lead: LeadAlert, origin: string) {
@@ -49,26 +90,14 @@ export async function sendLeadAlert(lead: LeadAlert, origin: string) {
   <p style="margin:16px 0 0;color:#5a606b;font-size:13px">Reply to this email to answer ${escape(lead.name)} directly.</p>
 </div>`;
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": `lead-alert-${lead.id}`,
-      },
-      body: JSON.stringify({
-        from: ALERT_EMAIL_FROM,
-        to: ALERT_EMAIL_TO!.split(",").map((s) => s.trim()).filter(Boolean),
-        reply_to: lead.email,
-        subject: `New enquiry: ${lead.name}${lead.businessName ? ` (${lead.businessName})` : ""}${lead.service ? ` · ${lead.service}` : ""}`.replace(/\s+/g, " "),
-        text,
-        html,
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) console.error("[email] lead alert failed", res.status, await res.text());
-  } catch (err) {
-    console.error("[email] lead alert failed", err);
-  }
+  const result = await sendEmail({
+    from: ALERT_EMAIL_FROM!,
+    to: ALERT_EMAIL_TO!.split(",").map((s) => s.trim()).filter(Boolean),
+    replyTo: lead.email,
+    subject: `New enquiry: ${lead.name}${lead.businessName ? ` (${lead.businessName})` : ""}${lead.service ? ` · ${lead.service}` : ""}`,
+    text,
+    html,
+    idempotencyKey: `lead-alert-${lead.id}`,
+  });
+  if (!result.ok) console.error("[email] lead alert failed:", result.error);
 }

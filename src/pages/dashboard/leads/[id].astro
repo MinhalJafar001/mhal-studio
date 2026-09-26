@@ -3,8 +3,11 @@ import DashboardLayout from "../../../layouts/DashboardLayout.astro";
 import EmptyState from "../../../components/dashboard/EmptyState.astro";
 import SourceBadge from "../../../components/dashboard/SourceBadge.astro";
 import StatusBadge from "../../../components/dashboard/StatusBadge.astro";
+import { OUTREACH_FROM } from "astro:env/server";
 import { getSql } from "../../../lib/db";
+import { emailConfigured, sendEmail } from "../../../lib/email";
 import { STATUSES, ago, isStatus, statusLabel, telHref, websiteHref, websiteLabel } from "../../../lib/leads";
+import { EMAIL, PHONE } from "../../../lib/site";
 
 export const prerender = false;
 
@@ -22,7 +25,7 @@ type Lead = {
   service: string | null;
   message: string | null;
 };
-type Activity = { id: string; created_at: Date; kind: string; body: string | null; meta: { from?: string; to?: string } | null };
+type Activity = { id: string; created_at: Date; kind: string; body: string | null; meta: { from?: string; to?: string; subject?: string; auto?: boolean } | null };
 
 const id = Astro.params.id ?? "";
 const sql = getSql();
@@ -30,6 +33,8 @@ if (!/^\d{1,18}$/.test(id) || !sql) return Astro.rewrite("/404");
 
 const self = `/dashboard/leads/${id}`;
 let error = "";
+let emailError = "";
+let draft: { subject: string; body: string } | undefined;
 
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
@@ -56,6 +61,45 @@ if (Astro.request.method === "POST") {
       await sql`INSERT INTO lead_activity (lead_id, kind, body) SELECT id, 'note', ${body} FROM leads WHERE id = ${id}`;
       return Astro.redirect(self, 303);
     }
+  } else if (action === "email") {
+    draft = { subject: String(form.get("subject") ?? "").trim(), body: String(form.get("body") ?? "").trim() };
+    const nonce = String(form.get("nonce") ?? "").slice(0, 64);
+    const [row] = (await sql`
+      SELECT email, EXISTS (SELECT 1 FROM lead_activity WHERE lead_id = ${id} AND kind = 'email' AND meta->>'nonce' = ${nonce}) AS already_sent
+      FROM leads WHERE id = ${id}
+    `) as { email: string | null; already_sent: boolean }[];
+
+    if (row?.already_sent) return Astro.redirect(`${self}?sent=1`, 303); // double submit
+    if (!row?.email) emailError = "This lead has no email address.";
+    else if (!nonce) emailError = "Please reload the page and try again.";
+    else if (!draft.subject) emailError = "Add a subject.";
+    else if (!draft.body) emailError = "Write a message.";
+    else if (draft.subject.length > 200) emailError = "Subject is too long (200 characters max).";
+    else if (draft.body.length > 10000) emailError = "Message is too long (10,000 characters max).";
+    else {
+      const result = await sendEmail({
+        from: OUTREACH_FROM!,
+        to: row.email,
+        subject: draft.subject,
+        text: draft.body,
+        idempotencyKey: `lead-email-${id}-${nonce}`,
+      });
+      if (!result.ok) emailError = `Couldn't send: ${result.error}`;
+      else {
+        // Log the email, and move a New lead to Contacted (logged as an automatic status change)
+        await sql`
+          WITH sent AS (
+            INSERT INTO lead_activity (lead_id, kind, body, meta)
+            VALUES (${id}, 'email', ${draft.body}, jsonb_build_object('subject', ${draft.subject}::text, 'to', ${row.email}::text, 'resend_id', ${result.id}::text, 'nonce', ${nonce}::text))
+            RETURNING lead_id
+          ),
+          upd AS (UPDATE leads SET status = 'contacted', updated_at = now() WHERE id = ${id} AND status = 'new' RETURNING id)
+          INSERT INTO lead_activity (lead_id, kind, meta)
+          SELECT id, 'status', jsonb_build_object('from', 'new', 'to', 'contacted', 'auto', true) FROM upd
+        `;
+        return Astro.redirect(`${self}?sent=1`, 303);
+      }
+    }
   } else if (action === "delete_note") {
     const noteId = String(form.get("note_id") ?? "");
     if (/^\d{1,18}$/.test(noteId)) {
@@ -76,6 +120,11 @@ if (!lead) return Astro.rewrite("/404");
 const timeline = activity as Activity[];
 
 const title = lead.business_name ?? lead.name ?? lead.email ?? "Lead";
+const sent = Astro.url.searchParams.get("sent") === "1";
+const canEmail = emailConfigured();
+const firstName = lead.name?.split(" ")[0] ?? "there";
+const emailBody = draft?.body ?? `Hi ${firstName},\n\n\n\nBest regards,\nMhal Studio\n${EMAIL} · ${PHONE}\nmhalstudio.com`;
+const nonce = crypto.randomUUID();
 const subtitle = [lead.business_name ? lead.name : null, lead.position].filter(Boolean).join(" · ");
 const details = [
   { label: "Email", value: lead.email, href: lead.email ? `mailto:${lead.email}` : null },
@@ -125,7 +174,7 @@ const details = [
 
       {(lead.email || lead.phone) && (
         <div class="mt-5 flex flex-wrap gap-2">
-          {lead.email && <a href={`mailto:${lead.email}`} class="rounded-full bg-signal px-4 py-2 font-medium text-white transition-colors hover:bg-signal-hover">Email</a>}
+          {lead.email && <a href="#compose" class="rounded-full bg-signal px-4 py-2 font-medium text-white transition-colors hover:bg-signal-hover">Email</a>}
           {lead.phone && <a href={telHref(lead.phone)} class="rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal">Call</a>}
         </div>
       )}
@@ -149,6 +198,48 @@ const details = [
             </button>
           ))}
         </form>
+      </div>
+
+      {sent && (
+        <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">Email sent to {lead.email}. It's logged in the activity below.</p>
+      )}
+
+      <div id="compose" class="scroll-mt-20 rounded-[14px] border border-line bg-surface p-5">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="font-display text-[16px] font-semibold">Send email</h3>
+          {lead.email && <span class="truncate text-[13px] text-slate">to {lead.email}</span>}
+        </div>
+        {!lead.email ? (
+          <p class="mt-2 text-slate">No email address on file for this lead.</p>
+        ) : (
+          <form method="POST" class="mt-3 space-y-2" data-send-email>
+            <input type="hidden" name="action" value="email" />
+            <input type="hidden" name="nonce" value={nonce} />
+            <input
+              name="subject"
+              value={draft?.subject ?? ""}
+              maxlength="200"
+              required
+              placeholder="Subject"
+              aria-label="Subject"
+              class="w-full rounded-[10px] border border-line bg-paper px-3 py-2 outline-none transition-colors focus:border-signal focus:bg-surface"
+            />
+            <textarea
+              name="body"
+              rows="9"
+              maxlength="10000"
+              required
+              aria-label="Message"
+              class="w-full resize-y rounded-[10px] border border-line bg-paper px-3 py-2 leading-relaxed outline-none transition-colors focus:border-signal focus:bg-surface"
+            >{emailBody}</textarea>
+            {emailError && <p role="alert" class="text-[13px] text-red-700">{emailError}</p>}
+            {!canEmail && <p class="text-[13px] text-slate">Sending is off: RESEND_API_KEY isn't set.</p>}
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-[12px] text-slate">Sent from {OUTREACH_FROM} · replies go to that inbox</p>
+              <button type="submit" disabled={!canEmail} class="rounded-full bg-signal px-5 py-2 font-medium text-white transition-colors hover:bg-signal-hover disabled:cursor-not-allowed disabled:opacity-50">Send email</button>
+            </div>
+          </form>
+        )}
       </div>
 
       <div class="rounded-[14px] border border-line bg-surface p-5">
@@ -176,15 +267,21 @@ const details = [
           <ol class="mt-3 space-y-4 border-l border-line pl-4">
             {timeline.map((a) => (
               <li class="relative">
-                <span class={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${a.kind === "note" ? "bg-signal" : "bg-slate/40"}`}></span>
+                <span class={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${a.kind === "note" ? "bg-signal" : a.kind === "email" ? "bg-emerald-600" : "bg-slate/40"}`}></span>
                 <div class="flex items-baseline justify-between gap-3">
-                  <p class="font-medium">
-                    {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email" : "Call"}
-                    {a.kind === "status" && a.meta?.from && <span class="font-normal text-slate"> from {statusLabel(a.meta.from)}</span>}
+                  <p class="min-w-0 font-medium">
+                    {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email sent" : "Call"}
+                    {a.kind === "status" && a.meta?.from && <span class="font-normal text-slate"> from {statusLabel(a.meta.from)}{a.meta.auto ? " (after email)" : ""}</span>}
+                    {a.kind === "email" && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
                   </p>
                   <span class="shrink-0 text-[12px] text-slate" title={new Date(a.created_at).toISOString()}>{ago(a.created_at)}</span>
                 </div>
-                {a.body && <p class="mt-1 whitespace-pre-wrap text-ink/90">{a.body}</p>}
+                {a.body && a.kind === "email" ? (
+                  <details class="mt-1">
+                    <summary class="cursor-pointer text-[13px] text-signal">Show message</summary>
+                    <p class="mt-1.5 whitespace-pre-wrap rounded-[10px] bg-paper px-3 py-2 text-ink/90">{a.body}</p>
+                  </details>
+                ) : a.body && <p class="mt-1 whitespace-pre-wrap text-ink/90">{a.body}</p>}
                 {a.kind === "note" && (
                   <form method="POST" class="mt-1" data-confirm="Delete this note?">
                     <input type="hidden" name="action" value="delete_note" />
@@ -207,5 +304,14 @@ const details = [
     form.addEventListener("submit", (e) => {
       if (!confirm(form.dataset.confirm)) e.preventDefault();
     });
+  });
+
+  // Show progress and block a second click while the email sends
+  document.querySelector<HTMLFormElement>("form[data-send-email]")?.addEventListener("submit", (e) => {
+    const button = (e.currentTarget as HTMLFormElement).querySelector<HTMLButtonElement>("button[type=submit]");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Sending…";
+    }
   });
 </script>

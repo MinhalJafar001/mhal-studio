@@ -1,9 +1,101 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
+import StatusBadge from "../../components/dashboard/StatusBadge.astro";
+import { getSql } from "../../lib/db";
+import { emailConfigured } from "../../lib/email";
+import { ago } from "../../lib/leads";
 
 export const prerender = false;
+
+type Sent = {
+  id: string;
+  created_at: Date;
+  subject: string | null;
+  to: string | null;
+  lead_id: string;
+  lead: string | null;
+  status: string;
+};
+
+const sql = getSql();
+let emails: Sent[] = [];
+let stats = { total: 0, week: 0, leads: 0 };
+
+if (sql) {
+  const [rows, totals] = await Promise.all([
+    sql`SELECT a.id, a.created_at, a.meta->>'subject' AS subject, a.meta->>'to' AS "to",
+               l.id AS lead_id, COALESCE(l.business_name, l.name, l.email) AS lead, l.status
+        FROM lead_activity a JOIN leads l ON l.id = a.lead_id
+        WHERE a.kind = 'email'
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 200`,
+    sql`SELECT count(*)::int AS total,
+               count(*) FILTER (WHERE created_at >= now() - interval '7 days')::int AS week,
+               count(DISTINCT lead_id)::int AS leads
+        FROM lead_activity WHERE kind = 'email'`,
+  ]);
+  emails = rows as Sent[];
+  stats = (totals as typeof stats[])[0];
+}
 ---
 <DashboardLayout title="Email">
-  <EmptyState text="Outreach, templates, and replies will live here." />
+  {!sql ? (
+    <EmptyState heading="Database not connected" text="Set DATABASE_URL to see sent emails here." />
+  ) : (
+    <div class="space-y-5">
+      <div class="grid grid-cols-3 gap-3">
+        <div class="rounded-[14px] border border-line bg-surface p-4">
+          <p class="text-slate">Emails sent</p>
+          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.total}</p>
+        </div>
+        <div class="rounded-[14px] border border-line bg-surface p-4">
+          <p class="text-slate">This week</p>
+          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.week}</p>
+        </div>
+        <div class="rounded-[14px] border border-line bg-surface p-4">
+          <p class="text-slate">Leads emailed</p>
+          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.leads}</p>
+        </div>
+      </div>
+
+      {!emailConfigured() && (
+        <p class="rounded-[10px] border border-line bg-surface px-4 py-2.5 text-slate">Sending is off: set RESEND_API_KEY to send emails from lead pages.</p>
+      )}
+
+      {emails.length === 0 ? (
+        <EmptyState
+          heading="No emails sent yet"
+          text="Open a lead and use Send email. Everything you send from the dashboard is listed here."
+        />
+      ) : (
+        <div class="overflow-x-auto rounded-[14px] border border-line bg-surface">
+          <table class="w-full min-w-[720px] text-left text-[13px]">
+            <thead class="border-b border-line bg-paper/60 text-[12px] uppercase tracking-wide text-slate">
+              <tr>
+                <th class="px-4 py-3 font-medium">Sent</th>
+                <th class="px-4 py-3 font-medium">Lead</th>
+                <th class="px-4 py-3 font-medium">To</th>
+                <th class="px-4 py-3 font-medium">Subject</th>
+                <th class="px-4 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+              {emails.map((e) => (
+                <tr class="transition-colors hover:bg-paper/60">
+                  <td class="whitespace-nowrap px-4 py-3 text-slate" title={new Date(e.created_at).toISOString()}>{ago(e.created_at)}</td>
+                  <td class="whitespace-nowrap px-4 py-3 font-medium">
+                    <a href={`/dashboard/leads/${e.lead_id}`} class="hover:text-signal hover:underline">{e.lead}</a>
+                  </td>
+                  <td class="px-4 py-3 text-slate">{e.to}</td>
+                  <td class="max-w-[320px] truncate px-4 py-3">{e.subject}</td>
+                  <td class="px-4 py-3"><StatusBadge status={e.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )}
 </DashboardLayout>
