@@ -29,6 +29,11 @@ export default defineConfig({
       ALERT_EMAIL_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <alerts@mhalstudio.com>' }),
       // Sender for emails written to leads from the dashboard; replies go to this address
       OUTREACH_FROM: envField.string({ context: 'server', access: 'secret', optional: true, default: 'Mhal Studio <connect@mhalstudio.com>' }),
+      // Reply tracking (Resend receiving). Set REPLY_TO_ADDRESS only once the receiving domain is verified,
+      // otherwise replies would bounce. Replies are logged on the lead and forwarded to INBOX_FORWARD_TO.
+      REPLY_TO_ADDRESS: envField.string({ context: 'server', access: 'secret', optional: true }),
+      RESEND_WEBHOOK_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
+      INBOX_FORWARD_TO: envField.string({ context: 'server', access: 'secret', optional: true, default: 'connect@mhalstudio.com' }),
     },
   },
 

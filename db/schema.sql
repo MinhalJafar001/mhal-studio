@@ -47,3 +47,9 @@ CREATE TABLE IF NOT EXISTS lead_activity (
 
 CREATE INDEX IF NOT EXISTS lead_activity_lead_idx ON lead_activity (lead_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS leads_status_idx ON leads (status);
+
+-- v4: inbound replies (via Resend receiving). Each received email is logged at most once.
+ALTER TABLE lead_activity DROP CONSTRAINT IF EXISTS lead_activity_kind_check;
+ALTER TABLE lead_activity ADD CONSTRAINT lead_activity_kind_check CHECK (kind IN ('note', 'status', 'email', 'reply', 'call'));
+CREATE UNIQUE INDEX IF NOT EXISTS lead_activity_inbound_key ON lead_activity ((meta->>'inbound_id')) WHERE kind = 'reply';
+CREATE INDEX IF NOT EXISTS leads_email_lower_idx ON leads (lower(email));

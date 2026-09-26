@@ -3,7 +3,7 @@ import DashboardLayout from "../../../layouts/DashboardLayout.astro";
 import EmptyState from "../../../components/dashboard/EmptyState.astro";
 import SourceBadge from "../../../components/dashboard/SourceBadge.astro";
 import StatusBadge from "../../../components/dashboard/StatusBadge.astro";
-import { OUTREACH_FROM } from "astro:env/server";
+import { OUTREACH_FROM, REPLY_TO_ADDRESS } from "astro:env/server";
 import { getSql } from "../../../lib/db";
 import { emailConfigured, sendEmail } from "../../../lib/email";
 import { STATUSES, ago, isStatus, statusLabel, telHref, websiteHref, websiteLabel } from "../../../lib/leads";
@@ -25,7 +25,13 @@ type Lead = {
   service: string | null;
   message: string | null;
 };
-type Activity = { id: string; created_at: Date; kind: string; body: string | null; meta: { from?: string; to?: string; subject?: string; auto?: boolean } | null };
+type Activity = {
+  id: string;
+  created_at: Date;
+  kind: string;
+  body: string | null;
+  meta: { from?: string; to?: string; subject?: string; auto?: boolean; full_text?: string | null } | null;
+};
 
 const id = Astro.params.id ?? "";
 const sql = getSql();
@@ -80,6 +86,7 @@ if (Astro.request.method === "POST") {
       const result = await sendEmail({
         from: OUTREACH_FROM!,
         to: row.email,
+        replyTo: REPLY_TO_ADDRESS || undefined, // routes replies through Resend so they're logged here
         subject: draft.subject,
         text: draft.body,
         idempotencyKey: `lead-email-${id}-${nonce}`,
@@ -236,7 +243,9 @@ const details = [
             {emailError && <p role="alert" class="text-[13px] text-red-700">{emailError}</p>}
             {!canEmail && <p class="text-[13px] text-slate">Sending is off: RESEND_API_KEY isn't set.</p>}
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <p class="text-[12px] text-slate">Sent from {OUTREACH_FROM} · replies go to that inbox</p>
+              <p class="text-[12px] text-slate">
+                Sent from {OUTREACH_FROM} · {REPLY_TO_ADDRESS ? "replies are logged here and forwarded to your inbox" : "replies go to that inbox (not logged here)"}
+              </p>
               <button type="submit" disabled={!canEmail} class="rounded-full bg-signal px-5 py-2 font-medium text-white transition-colors hover:bg-signal-hover disabled:cursor-not-allowed disabled:opacity-50">Send email</button>
             </div>
           </form>
@@ -268,16 +277,26 @@ const details = [
           <ol class="mt-3 space-y-4 border-l border-line pl-4">
             {timeline.map((a) => (
               <li class="relative">
-                <span class={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${a.kind === "note" ? "bg-signal" : a.kind === "email" ? "bg-emerald-600" : "bg-slate/40"}`}></span>
+                <span class={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${a.kind === "note" ? "bg-signal" : a.kind === "email" ? "bg-emerald-600" : a.kind === "reply" ? "bg-amber-500" : "bg-slate/40"}`}></span>
                 <div class="flex items-baseline justify-between gap-3">
                   <p class="min-w-0 font-medium">
-                    {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email sent" : "Call"}
+                    {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email sent" : a.kind === "reply" ? "Reply received" : "Call"}
                     {a.kind === "status" && a.meta?.from && <span class="font-normal text-slate"> from {statusLabel(a.meta.from)}{a.meta.auto ? " (after email)" : ""}</span>}
-                    {a.kind === "email" && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
+                    {(a.kind === "email" || a.kind === "reply") && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
                   </p>
                   <span class="shrink-0 text-[12px] text-slate" title={new Date(a.created_at).toISOString()}>{ago(a.created_at)}</span>
                 </div>
-                {a.body && a.kind === "email" ? (
+                {a.kind === "reply" ? (
+                  <div class="mt-1.5 rounded-[10px] border border-amber-200 bg-amber-50/60 px-3 py-2">
+                    <p class="whitespace-pre-wrap text-ink/90">{a.body || "(empty message)"}</p>
+                    {a.meta?.full_text && (
+                      <details class="mt-2">
+                        <summary class="cursor-pointer text-[13px] text-signal">Show full email with quoted thread</summary>
+                        <p class="mt-1.5 whitespace-pre-wrap text-[13px] text-slate">{a.meta.full_text}</p>
+                      </details>
+                    )}
+                  </div>
+                ) : a.body && a.kind === "email" ? (
                   <details class="mt-1">
                     <summary class="cursor-pointer text-[13px] text-signal">Show message</summary>
                     <p class="mt-1.5 whitespace-pre-wrap rounded-[10px] bg-paper px-3 py-2 text-ink/90">{a.body}</p>

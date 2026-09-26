@@ -2,92 +2,103 @@
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
 import StatusBadge from "../../components/dashboard/StatusBadge.astro";
+import { REPLY_TO_ADDRESS } from "astro:env/server";
 import { getSql } from "../../lib/db";
 import { emailConfigured } from "../../lib/email";
 import { ago } from "../../lib/leads";
 
 export const prerender = false;
 
-type Sent = {
+type Row = {
   id: string;
+  kind: "email" | "reply";
   created_at: Date;
   subject: string | null;
-  to: string | null;
+  address: string | null;
   lead_id: string;
   lead: string | null;
   status: string;
 };
 
 const sql = getSql();
-let emails: Sent[] = [];
-let stats = { total: 0, week: 0, leads: 0 };
+let rows: Row[] = [];
+let stats = { sent: 0, week: 0, leads: 0, replies: 0 };
 
 if (sql) {
-  const [rows, totals] = await Promise.all([
-    sql`SELECT a.id, a.created_at, a.meta->>'subject' AS subject, a.meta->>'to' AS "to",
+  const [list, totals] = await Promise.all([
+    sql`SELECT a.id, a.kind, a.created_at, a.meta->>'subject' AS subject,
+               CASE WHEN a.kind = 'reply' THEN a.meta->>'from' ELSE a.meta->>'to' END AS address,
                l.id AS lead_id, COALESCE(l.business_name, l.name, l.email) AS lead, l.status
         FROM lead_activity a JOIN leads l ON l.id = a.lead_id
-        WHERE a.kind = 'email'
+        WHERE a.kind IN ('email', 'reply')
         ORDER BY a.created_at DESC, a.id DESC
         LIMIT 200`,
-    sql`SELECT count(*)::int AS total,
-               count(*) FILTER (WHERE created_at >= now() - interval '7 days')::int AS week,
-               count(DISTINCT lead_id)::int AS leads
-        FROM lead_activity WHERE kind = 'email'`,
+    sql`SELECT count(*) FILTER (WHERE kind = 'email')::int AS sent,
+               count(*) FILTER (WHERE kind = 'email' AND created_at >= now() - interval '7 days')::int AS week,
+               count(DISTINCT lead_id) FILTER (WHERE kind = 'email')::int AS leads,
+               count(*) FILTER (WHERE kind = 'reply')::int AS replies
+        FROM lead_activity WHERE kind IN ('email', 'reply')`,
   ]);
-  emails = rows as Sent[];
-  stats = (totals as typeof stats[])[0];
+  rows = list as Row[];
+  stats = (totals as (typeof stats)[])[0];
 }
+
+const cards = [
+  { label: "Emails sent", value: stats.sent },
+  { label: "Sent this week", value: stats.week },
+  { label: "Leads emailed", value: stats.leads },
+  { label: "Replies", value: stats.replies },
+];
 ---
 <DashboardLayout title="Email">
   {!sql ? (
-    <EmptyState heading="Database not connected" text="Set DATABASE_URL to see sent emails here." />
+    <EmptyState heading="Database not connected" text="Set DATABASE_URL to see emails here." />
   ) : (
     <div class="space-y-5">
-      <div class="grid grid-cols-3 gap-3">
-        <div class="rounded-[14px] border border-line bg-surface p-4">
-          <p class="text-slate">Emails sent</p>
-          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.total}</p>
-        </div>
-        <div class="rounded-[14px] border border-line bg-surface p-4">
-          <p class="text-slate">This week</p>
-          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.week}</p>
-        </div>
-        <div class="rounded-[14px] border border-line bg-surface p-4">
-          <p class="text-slate">Leads emailed</p>
-          <p class="mt-1 font-display text-[28px] font-bold leading-none">{stats.leads}</p>
-        </div>
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {cards.map((c) => (
+          <div class="rounded-[14px] border border-line bg-surface p-4">
+            <p class="text-slate">{c.label}</p>
+            <p class="mt-1 font-display text-[28px] font-bold leading-none">{c.value}</p>
+          </div>
+        ))}
       </div>
 
       {!emailConfigured() && (
         <p class="rounded-[10px] border border-line bg-surface px-4 py-2.5 text-slate">Sending is off: set RESEND_API_KEY to send emails from lead pages.</p>
       )}
+      {emailConfigured() && !REPLY_TO_ADDRESS && (
+        <p class="rounded-[10px] border border-line bg-surface px-4 py-2.5 text-slate">Reply tracking is off: replies go to your inbox but aren't logged here until REPLY_TO_ADDRESS is set.</p>
+      )}
 
-      {emails.length === 0 ? (
-        <EmptyState
-          heading="No emails sent yet"
-          text="Open a lead and use Send email. Everything you send from the dashboard is listed here."
-        />
+      {rows.length === 0 ? (
+        <EmptyState heading="No emails yet" text="Open a lead and use Send email. Emails you send, and replies to them, are listed here." />
       ) : (
         <div class="overflow-x-auto rounded-[14px] border border-line bg-surface">
-          <table class="w-full min-w-[720px] text-left text-[13px]">
+          <table class="w-full min-w-[760px] text-left text-[13px]">
             <thead class="border-b border-line bg-paper/60 text-[12px] uppercase tracking-wide text-slate">
               <tr>
-                <th class="px-4 py-3 font-medium">Sent</th>
+                <th class="px-4 py-3 font-medium">When</th>
+                <th class="px-4 py-3 font-medium"><span class="sr-only">Direction</span></th>
                 <th class="px-4 py-3 font-medium">Lead</th>
-                <th class="px-4 py-3 font-medium">To</th>
+                <th class="px-4 py-3 font-medium">To / From</th>
                 <th class="px-4 py-3 font-medium">Subject</th>
                 <th class="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-line">
-              {emails.map((e) => (
+              {rows.map((e) => (
                 <tr class="transition-colors hover:bg-paper/60">
                   <td class="whitespace-nowrap px-4 py-3 text-slate" title={new Date(e.created_at).toISOString()}>{ago(e.created_at)}</td>
+                  <td class="px-4 py-3">
+                    <span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${e.kind === "reply" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                      {e.kind === "reply" ? "Reply" : "Sent"}
+                    </span>
+                  </td>
                   <td class="whitespace-nowrap px-4 py-3 font-medium">
                     <a href={`/dashboard/leads/${e.lead_id}`} class="hover:text-signal hover:underline">{e.lead}</a>
                   </td>
-                  <td class="px-4 py-3 text-slate">{e.to}</td>
+                  <td class="px-4 py-3 text-slate">{e.address}</td>
                   <td class="max-w-[320px] truncate px-4 py-3">{e.subject}</td>
                   <td class="px-4 py-3"><StatusBadge status={e.status} /></td>
                 </tr>
