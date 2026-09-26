@@ -1,4 +1,5 @@
 ---
+import { BOOKING_URL } from "../lib/site";
 const nav = [
   { label: "Work", href: "/work" },
   { label: "Services", href: "/services" },
@@ -19,6 +20,6 @@ const nav = [
       ))}
     </nav>
 
-    <a href="/contact" class="rounded-full bg-signal px-5 py-2.5 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
+    <a href={BOOKING_URL} target="_blank" rel="noopener" class="rounded-full bg-signal px-5 py-2.5 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
   </div>
 </header>

@@ -1,8 +1,7 @@
 ---
+import { BOOKING_URL, EMAIL, PHONE, PHONE_HREF } from "../lib/site";
 import Layout from "../layouts/Layout.astro";
 import { HONEYPOT_FIELD, SERVICE_OPTIONS } from "../lib/contact";
-const PHONE = "+1 (415) 555-0192";
-const EMAIL = "hello@mhalstudio.com";
 ---
 <Layout title="Contact — Mhal Studio" description="Tell us about your project and we'll get back to you — or book a call directly.">
   <section class="mx-auto max-w-6xl px-6 py-16 md:py-24">
@@ -62,11 +61,11 @@ const EMAIL = "hello@mhalstudio.com";
 
       <!-- Contact options -->
       <div class="flex flex-col gap-4">
-        <a href="/contact" class="rounded-[18px] bg-ink p-6 text-white transition-transform hover:-translate-y-0.5">
+        <a href={BOOKING_URL} target="_blank" rel="noopener" class="rounded-[18px] bg-ink p-6 text-white transition-transform hover:-translate-y-0.5">
           <p class="text-[15px] font-medium">Book a call</p>
           <p class="mt-1 text-[14px] text-white/60">Grab a time that works for you.</p>
         </a>
-        <a href={`tel:${PHONE.replace(/[^+\d]/g, "")}`} class="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-6 transition-transform hover:-translate-y-0.5">
+        <a href={PHONE_HREF} class="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-6 transition-transform hover:-translate-y-0.5">
           <span class="flex h-10 w-10 items-center justify-center rounded-full bg-signal/10 text-signal">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           </span>

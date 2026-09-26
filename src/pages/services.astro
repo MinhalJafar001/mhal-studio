@@ -1,4 +1,5 @@
 ---
+import { BOOKING_URL } from "../lib/site";
 import Layout from "../layouts/Layout.astro";
 const services = [
   { n: "01", t: "Website Design", d: "Conversion-focused, on-brand design that makes you look like the leader in your space. Every layout is built to guide visitors toward taking action.", points: ["Custom, responsive design", "Conversion-focused layouts", "Brand-aligned visuals"] },
@@ -43,7 +44,7 @@ const total = String(services.length).padStart(2, "0");
     <div class="mt-14 rounded-[24px] bg-signal px-8 py-12 text-center text-white">
       <h2 class="font-display text-[clamp(1.6rem,3.5vw,2.4rem)] font-semibold">Not sure what you need?</h2>
       <p class="mx-auto mt-3 max-w-md text-[16px] text-white/75">Book a free consultation and we'll help you figure out the right approach.</p>
-      <a href="/contact" class="mt-7 inline-block rounded-full bg-white px-7 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">Book a call</a>
+      <a href={BOOKING_URL} target="_blank" rel="noopener" class="mt-7 inline-block rounded-full bg-white px-7 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">Book a call</a>
     </div>
   </section>
 </Layout>

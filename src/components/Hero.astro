@@ -1,4 +1,5 @@
 ---
+import { BOOKING_URL } from "../lib/site";
 const colA = [
   "FinFLO Website Design.png",
   "Lusso Website Design.png",
@@ -40,7 +41,7 @@ const tools = ["framer", "webflow", "shopify"]; // figma handled separately belo
       </p>
 
       <div class="mt-8 flex flex-wrap items-center gap-3">
-        <a href="/contact" class="rounded-full bg-signal px-6 py-3 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
+        <a href={BOOKING_URL} target="_blank" rel="noopener" class="rounded-full bg-signal px-6 py-3 text-[15px] font-medium text-white transition-colors hover:bg-signal-hover">Book a call</a>
         <a href="/work" class="rounded-full border border-line bg-surface px-6 py-3 text-[15px] font-medium text-ink transition-colors hover:border-ink/30">See our work</a>
       </div>
 
