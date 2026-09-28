@@ -53,12 +53,24 @@ export const POST: APIRoute = async ({ request, url }) => {
   `) as { id: string; label: string }[];
 
   if (lead) {
+    // Log the reply once; on first delivery also flag New/Contacted leads as Replied (Won/Lost are left alone)
     await sql`
-      INSERT INTO lead_activity (lead_id, kind, body, meta)
-      VALUES (${lead.id}, 'reply', ${reply}, jsonb_build_object(
-        'inbound_id', ${email.id}::text, 'subject', ${subject}::text, 'from', ${email.from}::text,
-        'full_text', ${fullText === reply ? null : fullText}::text, 'message_id', ${email.message_id}::text))
-      ON CONFLICT ((meta->>'inbound_id')) WHERE kind = 'reply' DO NOTHING
+      WITH old AS (SELECT status FROM leads WHERE id = ${lead.id}),
+      logged AS (
+        INSERT INTO lead_activity (lead_id, kind, body, meta)
+        VALUES (${lead.id}, 'reply', ${reply}, jsonb_build_object(
+          'inbound_id', ${email.id}::text, 'subject', ${subject}::text, 'from', ${email.from}::text,
+          'full_text', ${fullText === reply ? null : fullText}::text, 'message_id', ${email.message_id}::text))
+        ON CONFLICT ((meta->>'inbound_id')) WHERE kind = 'reply' DO NOTHING
+        RETURNING lead_id
+      ),
+      flagged AS (
+        UPDATE leads SET status = 'replied', updated_at = now()
+        WHERE id IN (SELECT lead_id FROM logged) AND status IN ('new', 'contacted')
+        RETURNING id
+      )
+      INSERT INTO lead_activity (lead_id, kind, meta)
+      SELECT id, 'status', jsonb_build_object('from', (SELECT status FROM old), 'to', 'replied', 'auto', 'reply') FROM flagged
     `;
   }
 

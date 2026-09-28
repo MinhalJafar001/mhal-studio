@@ -3,6 +3,7 @@
 export const STATUSES = [
   { key: "new", label: "New", badge: "bg-signal/10 text-signal", bar: "bg-signal" },
   { key: "contacted", label: "Contacted", badge: "bg-amber-100 text-amber-800", bar: "bg-amber-500" },
+  { key: "replied", label: "Replied", badge: "bg-violet-100 text-violet-800", bar: "bg-violet-500" },
   { key: "won", label: "Won", badge: "bg-emerald-100 text-emerald-800", bar: "bg-emerald-600" },
   { key: "lost", label: "Lost", badge: "bg-ink/5 text-slate", bar: "bg-slate/40" },
 ] as const;

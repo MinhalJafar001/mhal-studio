@@ -53,3 +53,7 @@ ALTER TABLE lead_activity DROP CONSTRAINT IF EXISTS lead_activity_kind_check;
 ALTER TABLE lead_activity ADD CONSTRAINT lead_activity_kind_check CHECK (kind IN ('note', 'status', 'email', 'reply', 'call'));
 CREATE UNIQUE INDEX IF NOT EXISTS lead_activity_inbound_key ON lead_activity ((meta->>'inbound_id')) WHERE kind = 'reply';
 CREATE INDEX IF NOT EXISTS leads_email_lower_idx ON leads (lower(email));
+
+-- v5: 'replied' status, set automatically when a lead replies (cleared when you email them back)
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
+ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN ('new', 'contacted', 'replied', 'won', 'lost'));

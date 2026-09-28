@@ -30,7 +30,7 @@ type Activity = {
   created_at: Date;
   kind: string;
   body: string | null;
-  meta: { from?: string; to?: string; subject?: string; auto?: boolean; full_text?: string | null } | null;
+  meta: { from?: string; to?: string; subject?: string; auto?: boolean | "email" | "reply"; full_text?: string | null } | null;
 };
 
 const id = Astro.params.id ?? "";
@@ -93,16 +93,17 @@ if (Astro.request.method === "POST") {
       });
       if (!result.ok) emailError = `Couldn't send: ${result.error}`;
       else {
-        // Log the email, and move a New lead to Contacted (logged as an automatic status change)
+        // Log the email, and move New (not yet contacted) or Replied (awaiting your answer) leads to Contacted
         await sql`
-          WITH sent AS (
+          WITH old AS (SELECT status FROM leads WHERE id = ${id}),
+          sent AS (
             INSERT INTO lead_activity (lead_id, kind, body, meta)
             VALUES (${id}, 'email', ${draft.body}, jsonb_build_object('subject', ${draft.subject}::text, 'to', ${row.email}::text, 'resend_id', ${result.id}::text, 'nonce', ${nonce}::text))
             RETURNING lead_id
           ),
-          upd AS (UPDATE leads SET status = 'contacted', updated_at = now() WHERE id = ${id} AND status = 'new' RETURNING id)
+          upd AS (UPDATE leads SET status = 'contacted', updated_at = now() WHERE id = ${id} AND status IN ('new', 'replied') RETURNING id)
           INSERT INTO lead_activity (lead_id, kind, meta)
-          SELECT id, 'status', jsonb_build_object('from', 'new', 'to', 'contacted', 'auto', true) FROM upd
+          SELECT id, 'status', jsonb_build_object('from', (SELECT status FROM old), 'to', 'contacted', 'auto', 'email') FROM upd
         `;
         return Astro.redirect(`${self}?sent=1`, 303);
       }
@@ -281,7 +282,11 @@ const details = [
                 <div class="flex items-baseline justify-between gap-3">
                   <p class="min-w-0 font-medium">
                     {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email sent" : a.kind === "reply" ? "Reply received" : "Call"}
-                    {a.kind === "status" && a.meta?.from && <span class="font-normal text-slate"> from {statusLabel(a.meta.from)}{a.meta.auto ? " (after email)" : ""}</span>}
+                    {a.kind === "status" && a.meta?.from && (
+                      <span class="font-normal text-slate">
+                        {" "}from {statusLabel(a.meta.from)}{a.meta.auto === "reply" ? " (reply received)" : a.meta.auto ? " (after email)" : ""}
+                      </span>
+                    )}
                     {(a.kind === "email" || a.kind === "reply") && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
                   </p>
                   <span class="shrink-0 text-[12px] text-slate" title={new Date(a.created_at).toISOString()}>{ago(a.created_at)}</span>

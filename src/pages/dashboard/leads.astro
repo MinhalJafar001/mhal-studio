@@ -35,6 +35,7 @@ const status = isStatus(params.get("status")) ? params.get("status")! : "";
 const sql = getSql();
 let leads: Lead[] = [];
 let counts: Record<string, number> = { all: 0, website: 0, manual: 0 };
+let replied = 0;
 
 if (sql) {
   const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -49,12 +50,13 @@ if (sql) {
        LIMIT 1000`,
       [source, q, like, status]
     ),
-    sql`SELECT source, count(*)::int AS n FROM leads GROUP BY source`,
+    sql`SELECT source, count(*)::int AS n, count(*) FILTER (WHERE status = 'replied')::int AS replied FROM leads GROUP BY source`,
   ]);
   leads = rows as Lead[];
-  for (const t of totals as { source: string; n: number }[]) {
+  for (const t of totals as { source: string; n: number; replied: number }[]) {
     counts[t.source] = t.n;
     counts.all += t.n;
+    replied += t.replied;
   }
 }
 
@@ -112,6 +114,16 @@ const filtered = Boolean(q || status || source !== "all");
         <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">Lead added.</p>
       )}
 
+      {replied > 0 && status !== "replied" && (
+        <a href="/dashboard/leads?status=replied" class="flex items-center justify-between gap-3 rounded-[10px] border border-violet-200 bg-violet-50 px-4 py-2.5 text-violet-900 transition-colors hover:bg-violet-100">
+          <span class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-violet-600"></span>
+            <span><span class="font-semibold">{replied} {replied === 1 ? "lead has" : "leads have"} replied</span> and {replied === 1 ? "is" : "are"} waiting for your response.</span>
+          </span>
+          <span class="shrink-0 font-medium">View →</span>
+        </a>
+      )}
+
       {leads.length === 0 ? (
         <EmptyState
           heading={filtered ? "No matching leads" : "No leads yet"}
@@ -134,7 +146,7 @@ const filtered = Boolean(q || status || source !== "all");
             </thead>
             <tbody class="divide-y divide-line">
               {leads.map((l) => (
-                <tr class="transition-colors hover:bg-paper/60">
+                <tr class={`transition-colors ${l.status === "replied" ? "bg-violet-50/70 hover:bg-violet-50" : "hover:bg-paper/60"}`}>
                   <td class="px-4 py-3"><SourceBadge source={l.source} /></td>
                   <td class="px-4 py-3"><StatusBadge status={l.status} /></td>
                   <td class="whitespace-nowrap px-4 py-3 font-medium text-ink">
