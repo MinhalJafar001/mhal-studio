@@ -1,9 +1,462 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 import EmptyState from "../../components/dashboard/EmptyState.astro";
+import StatusBadge from "../../components/dashboard/StatusBadge.astro";
+import { getSql } from "../../lib/db";
+import { STATUSES, ago } from "../../lib/leads";
+import { OUTCOMES, formatDuration, outcomeBadge, outcomeLabel, toDialable } from "../../lib/calls";
 
 export const prerender = false;
+
+type QueueLead = { id: string; business_name: string | null; name: string | null; position: string | null; phone: string; status: string };
+type RecentCall = {
+  call_id: string;
+  started_at: Date | null;
+  direction: string | null;
+  number: string | null;
+  outcome: string | null;
+  duration_seconds: number | null;
+  summary: string | null;
+  lead_id: string | null;
+  lead: string | null;
+};
+
+const sql = getSql();
+let queue: QueueLead[] = [];
+let recent: RecentCall[] = [];
+
+if (sql) {
+  const [q, r] = await Promise.all([
+    sql`SELECT id, business_name, name, position, phone, status FROM leads
+        WHERE phone IS NOT NULL AND length(regexp_replace(phone, '\\D', '', 'g')) >= 7
+        ORDER BY CASE status WHEN 'replied' THEN 0 WHEN 'new' THEN 1 WHEN 'contacted' THEN 2 ELSE 3 END, created_at DESC, id DESC
+        LIMIT 1000`,
+    sql`SELECT c.call_id, COALESCE(c.started_at, c.created_at) AS started_at, c.direction, c.number, c.outcome, c.duration_seconds, c.summary,
+               l.id AS lead_id, COALESCE(l.business_name, l.name) AS lead
+        FROM calls c LEFT JOIN leads l ON l.id = c.lead_id
+        ORDER BY COALESCE(c.started_at, c.created_at) DESC LIMIT 15`,
+  ]);
+  queue = q as QueueLead[];
+  recent = r as RecentCall[];
+}
+
+const preselect = Astro.url.searchParams.get("lead") ?? "";
+// Only what the client script needs, with numbers already in dialable form
+const queueData = queue.map((l) => ({
+  id: l.id,
+  title: l.business_name ?? l.name ?? "Lead",
+  subtitle: [l.business_name ? l.name : null, l.position].filter(Boolean).join(" · "),
+  phone: l.phone,
+  dial: toDialable(l.phone),
+  status: l.status,
+}));
+const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 ---
 <DashboardLayout title="Dialer">
-  <EmptyState text="Click-to-call and call logging will live here." />
+  {!sql ? (
+    <EmptyState heading="Database not connected" text="Set DATABASE_URL to use the dialer." />
+  ) : (
+    <div class="space-y-5">
+      <div class="grid gap-5 xl:grid-cols-[minmax(260px,1fr)_minmax(320px,1.2fr)_auto]">
+        <!-- Queue -->
+        <section class="flex max-h-[640px] min-h-[320px] flex-col rounded-[14px] border border-line bg-surface">
+          <div class="space-y-2 border-b border-line p-3">
+            <div class="flex items-center justify-between">
+              <h2 class="font-display text-[16px] font-semibold">Call queue</h2>
+              <span class="text-[12px] text-slate" data-queue-count></span>
+            </div>
+            <div class="flex gap-2">
+              <select data-queue-status aria-label="Filter queue by status" class="rounded-full border border-line bg-paper px-3 py-1.5 outline-none focus:border-signal">
+                <option value="">All statuses</option>
+                {STATUSES.map((s) => <option value={s.key} selected={s.key === "new"}>{s.label}</option>)}
+              </select>
+              <input data-queue-search type="search" placeholder="Search…" aria-label="Search queue" class="min-w-0 flex-1 rounded-full border border-line bg-paper px-3 py-1.5 outline-none focus:border-signal" />
+            </div>
+          </div>
+          <ul data-queue class="flex-1 divide-y divide-line overflow-y-auto" role="listbox" aria-label="Leads to call"></ul>
+          <p data-queue-empty hidden class="p-6 text-center text-slate">No leads with a phone number match this filter.</p>
+        </section>
+
+        <!-- Current lead + dial pad -->
+        <section class="rounded-[14px] border border-line bg-surface p-5">
+          <div data-lead-card>
+            <p class="text-[12px] font-medium uppercase tracking-wide text-slate">Calling</p>
+            <h2 data-lead-title class="mt-1 font-display text-[22px] font-semibold leading-tight">Pick a lead or dial a number</h2>
+            <p data-lead-subtitle class="mt-0.5 text-slate"></p>
+            <div class="mt-2 flex items-center gap-2">
+              <span data-lead-status></span>
+              <a data-lead-link hidden class="text-[13px] text-signal hover:underline">Open lead →</a>
+            </div>
+          </div>
+
+          <label class="mt-4 block">
+            <span class="sr-only">Number to call</span>
+            <input data-number type="tel" inputmode="tel" placeholder="+1 555 000 0000" class="w-full rounded-[12px] border border-line bg-paper px-4 py-3 text-center font-display text-[24px] font-semibold tracking-wide outline-none transition-colors focus:border-signal focus:bg-surface" />
+          </label>
+
+          <div class="mx-auto mt-3 grid max-w-[280px] grid-cols-3 gap-2">
+            {keys.map((k) => (
+              <button type="button" data-key={k} class="rounded-[12px] border border-line bg-paper py-2.5 font-display text-[18px] font-semibold transition-colors hover:border-signal/40 hover:bg-signal/5 active:bg-signal/10">{k}</button>
+            ))}
+          </div>
+
+          <div class="mx-auto mt-4 flex max-w-[280px] items-center gap-2">
+            <button type="button" data-backspace aria-label="Delete last digit" class="rounded-full border border-line px-4 py-3 text-slate transition-colors hover:text-ink">⌫</button>
+            <button type="button" data-call class="flex flex-1 items-center justify-center gap-2 rounded-full bg-signal py-3 font-medium text-white transition-colors hover:bg-signal-hover disabled:cursor-not-allowed disabled:opacity-50">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              Call
+            </button>
+            <button type="button" data-next title="Select the next lead in the queue" class="rounded-full border border-line px-4 py-3 font-medium transition-colors hover:border-signal hover:text-signal">Next</button>
+          </div>
+
+          <!-- Live call status -->
+          <div data-call-state class="mt-4 rounded-[12px] bg-paper px-4 py-3 text-center" aria-live="polite">
+            <p data-state-label class="font-medium">Ready</p>
+            <p data-state-detail class="text-[13px] text-slate">Zoom will place the call from your Zoom Phone number.</p>
+          </div>
+
+          <!-- After a call: outcome + notes -->
+          <form data-outcome-form hidden class="mt-4 space-y-3 rounded-[12px] border border-line p-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-display text-[15px] font-semibold">How did it go?</h3>
+              <span data-outcome-hint class="text-[12px] text-slate"></span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {OUTCOMES.map((o) => (
+                <label class="cursor-pointer">
+                  <input type="radio" name="outcome" value={o.key} class="peer sr-only" />
+                  <span class="inline-block rounded-full border border-line px-3 py-1 text-[13px] font-medium text-slate transition-colors peer-checked:border-ink peer-checked:bg-ink peer-checked:text-paper peer-focus-visible:ring-2 peer-focus-visible:ring-signal">{o.label}</span>
+                </label>
+              ))}
+            </div>
+            <textarea name="notes" rows="3" maxlength="5000" placeholder="Notes: what they said, follow-up date…" class="w-full resize-y rounded-[10px] border border-line bg-paper px-3 py-2 outline-none focus:border-signal focus:bg-surface"></textarea>
+            <div class="flex items-center justify-between gap-2">
+              <span data-outcome-saved class="text-[13px] text-emerald-700"></span>
+              <div class="flex gap-2">
+                <button type="submit" class="rounded-full bg-signal px-4 py-2 font-medium text-white transition-colors hover:bg-signal-hover">Save</button>
+                <button type="button" data-save-next class="whitespace-nowrap rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal">Save & next</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- Zoom Phone (Smart Embed): carries the call; stays loaded while collapsed -->
+        <section class="rounded-[14px] border border-line bg-surface xl:w-[372px]">
+          <button type="button" data-zoom-toggle aria-expanded="true" class="flex w-full items-center justify-between gap-2 px-4 py-3 text-left">
+            <span>
+              <span class="block font-display text-[16px] font-semibold">Zoom Phone</span>
+              <span data-zoom-status class="block text-[12px] text-slate">Sign in once; keep the Zoom desktop app open for audio.</span>
+            </span>
+            <span data-zoom-chevron aria-hidden="true" class="text-slate transition-transform">⌃</span>
+          </button>
+          <div data-zoom-panel class="overflow-hidden border-t border-line px-2.5 pb-2.5 transition-[height] duration-300" style="height: 600px">
+            <iframe
+              data-zoom-iframe
+              src="https://applications.zoom.us/integration/phone/embeddablephone/home"
+              allow="clipboard-read; clipboard-write https://applications.zoom.us"
+              title="Zoom Phone"
+              class="mt-2.5 h-[580px] w-[350px] max-w-full rounded-[10px] border-0"
+            ></iframe>
+          </div>
+        </section>
+      </div>
+
+      <!-- Recent calls -->
+      <section class="rounded-[14px] border border-line bg-surface">
+        <div class="border-b border-line px-4 py-3">
+          <h2 class="font-display text-[16px] font-semibold">Recent calls</h2>
+        </div>
+        {recent.length === 0 ? (
+          <p class="px-4 py-6 text-center text-slate">No calls yet. They'll appear here, and on each lead's timeline, as you make them.</p>
+        ) : (
+          <ul class="divide-y divide-line">
+            {recent.map((c) => (
+              <li class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 px-4 py-3">
+                <div class="min-w-0">
+                  <p class="font-medium">
+                    {c.lead_id ? <a href={`/dashboard/leads/${c.lead_id}`} class="hover:text-signal hover:underline">{c.lead}</a> : <span>{c.number ?? "Unknown number"}</span>}
+                    <span class="font-normal text-slate"> · {c.direction === "inbound" ? "Incoming" : "Outgoing"} · {formatDuration(c.duration_seconds)}</span>
+                  </p>
+                  {c.summary && <p class="mt-0.5 line-clamp-2 text-[13px] text-slate">✨ {c.summary}</p>}
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span class={`rounded-full px-2 py-0.5 text-[11px] font-medium ${outcomeBadge(c.outcome)}`}>{outcomeLabel(c.outcome)}</span>
+                  <span class="text-[12px] text-slate">{c.started_at ? ago(c.started_at) : ""}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  )}
 </DashboardLayout>
+
+<script is:inline type="application/json" id="dialer-data" set:html={JSON.stringify({ queue: queueData, preselect }).replace(/</g, "\\u003c")}></script>
+
+<script>
+  import { STATUSES } from "../../lib/leads";
+
+  type Lead = { id: string; title: string; subtitle: string; phone: string; dial: string; status: string };
+  type ZoomEvent = { type?: string; data?: Record<string, any> };
+
+  const ZOOM_ORIGIN = "https://applications.zoom.us";
+  const { queue, preselect } = JSON.parse(document.getElementById("dialer-data")!.textContent!) as { queue: Lead[]; preselect: string };
+  const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
+
+  const listEl = $<HTMLUListElement>("[data-queue]");
+  const statusFilter = $<HTMLSelectElement>("[data-queue-status]");
+  const searchInput = $<HTMLInputElement>("[data-queue-search]");
+  const numberInput = $<HTMLInputElement>("[data-number]");
+  const callButton = $<HTMLButtonElement>("[data-call]");
+  const outcomeForm = $<HTMLFormElement>("[data-outcome-form]");
+  const iframe = $<HTMLIFrameElement>("[data-zoom-iframe]");
+
+  let selected: Lead | null = null;
+  let visible: Lead[] = [];
+  let timer: number | undefined;
+  // The call being handled in the outcome form, and which lead each Zoom call belongs to
+  let current: { callId: string; leadId: string | null; number: string; direction: string } | null = null;
+  const callLeads: Record<string, string | null> = JSON.parse(sessionStorage.getItem("dialer-call-leads") ?? "{}");
+  const rememberCall = (callId: string, leadId: string | null) => {
+    callLeads[callId] = leadId;
+    sessionStorage.setItem("dialer-call-leads", JSON.stringify(callLeads));
+  };
+  let pendingLeadId: string | null = null; // lead whose call we just asked Zoom to place
+
+  const statusBadge = (key: string) => {
+    const s = STATUSES.find((x) => x.key === key) ?? STATUSES[0];
+    return `<span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${s.badge}">${s.label}</span>`;
+  };
+  const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  const digits = (s: string) => s.replace(/\D/g, "");
+
+  // ---- Queue -------------------------------------------------------------
+  function renderQueue() {
+    const status = statusFilter.value;
+    const q = searchInput.value.trim().toLowerCase();
+    visible = queue.filter((l) => (!status || l.status === status) && (!q || `${l.title} ${l.subtitle} ${l.phone}`.toLowerCase().includes(q)));
+    listEl.innerHTML = visible
+      .map(
+        (l) => `<li role="option" aria-selected="${selected?.id === l.id}" data-id="${l.id}"
+          class="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 transition-colors ${selected?.id === l.id ? "bg-signal/10" : "hover:bg-paper"}">
+          <span class="min-w-0"><span class="block truncate font-medium">${escapeHtml(l.title)}</span>
+          <span class="block truncate text-[12px] text-slate">${escapeHtml(l.phone)}${l.subtitle ? " · " + escapeHtml(l.subtitle) : ""}</span></span>
+          ${statusBadge(l.status)}</li>`
+      )
+      .join("");
+    $("[data-queue-count]").textContent = `${visible.length} lead${visible.length === 1 ? "" : "s"}`;
+    $<HTMLElement>("[data-queue-empty]").hidden = visible.length > 0;
+  }
+
+  function select(lead: Lead | null) {
+    selected = lead;
+    $("[data-lead-title]").textContent = lead?.title ?? "Dialing a number";
+    $("[data-lead-subtitle]").textContent = lead?.subtitle ?? "";
+    $("[data-lead-status]").innerHTML = lead ? statusBadge(lead.status) : "";
+    const link = $<HTMLAnchorElement>("[data-lead-link]");
+    link.hidden = !lead;
+    if (lead) link.href = `/dashboard/leads/${lead.id}`;
+    numberInput.value = lead?.dial ?? numberInput.value;
+    renderQueue();
+    listEl.querySelector(`[data-id="${lead?.id}"]`)?.scrollIntoView({ block: "nearest" });
+  }
+
+  function selectNext() {
+    const i = selected ? visible.findIndex((l) => l.id === selected!.id) : -1;
+    const next = visible[i + 1] ?? visible.find((l) => l.id !== selected?.id);
+    if (next) select(next);
+  }
+
+  listEl.addEventListener("click", (e) => {
+    const li = (e.target as HTMLElement).closest<HTMLLIElement>("[data-id]");
+    if (li) select(queue.find((l) => l.id === li.dataset.id) ?? null);
+  });
+  statusFilter.addEventListener("change", renderQueue);
+  searchInput.addEventListener("input", renderQueue);
+  $("[data-next]").addEventListener("click", selectNext);
+
+  // ---- Dial pad ------------------------------------------------------------
+  document.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((b) =>
+    b.addEventListener("click", () => {
+      numberInput.value += b.dataset.key;
+      if (selected && digits(numberInput.value) !== digits(selected.dial)) select(null);
+    })
+  );
+  $("[data-backspace]").addEventListener("click", () => (numberInput.value = numberInput.value.slice(0, -1)));
+  numberInput.addEventListener("input", () => {
+    if (selected && digits(numberInput.value) !== digits(selected.dial)) select(null);
+  });
+
+  // ---- Call state display -----------------------------------------------------
+  function setState(label: string, detail = "", tone: "idle" | "live" | "done" = "idle") {
+    $("[data-state-label]").textContent = label;
+    $("[data-state-detail]").textContent = detail;
+    $("[data-call-state]").className = `mt-4 rounded-[12px] px-4 py-3 text-center ${tone === "live" ? "bg-emerald-50 text-emerald-900" : "bg-paper"}`;
+  }
+  function startTimer() {
+    const started = Date.now();
+    clearInterval(timer);
+    timer = window.setInterval(() => {
+      const s = Math.round((Date.now() - started) / 1000);
+      $("[data-state-detail]").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    }, 1000);
+  }
+
+  // ---- Talking to Zoom ------------------------------------------------------------
+  callButton.addEventListener("click", () => {
+    const number = numberInput.value.trim();
+    if (digits(number).length < 7) {
+      setState("Enter a number", "At least 7 digits.");
+      return;
+    }
+    pendingLeadId = selected?.id ?? null;
+    iframe.contentWindow?.postMessage({ type: "zp-make-call", data: { number, autoDial: true } }, ZOOM_ORIGIN);
+    setState("Calling…", `Asking Zoom to dial ${number}`, "live");
+    setZoomOpen(true);
+  });
+
+  const report = (payload: Record<string, unknown>) =>
+    fetch("/dashboard/api/calls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then((r) => r.json())
+      .catch(() => ({ ok: false }));
+
+  const otherParty = (d: Record<string, any>) => (d.direction === "inbound" ? d.caller : d.callee) ?? {};
+
+  window.addEventListener("message", async (e: MessageEvent<ZoomEvent>) => {
+    if (e.origin !== ZOOM_ORIGIN || !e.data?.type) return;
+    const d = e.data.data ?? {};
+    const callId: string | undefined = d.callId;
+
+    switch (e.data.type) {
+      case "zp-call-ringing-event":
+      case "zp-call-connected-event": {
+        if (!callId) return;
+        const direction = d.direction === "inbound" ? "inbound" : "outbound";
+        if (!(callId in callLeads)) {
+          const leadId = direction === "outbound" ? pendingLeadId : null;
+          rememberCall(callId, leadId);
+          pendingLeadId = null;
+          report({ type: "start", callId, leadId, direction, number: otherParty(d).phoneNumber, dateTime: d.dateTime });
+        }
+        const who = otherParty(d).name || otherParty(d).phoneNumber || "";
+        if (e.data.type === "zp-call-ringing-event") setState(direction === "inbound" ? "Incoming call" : "Ringing…", who, "live");
+        else {
+          setState("On call", "0:00", "live");
+          startTimer();
+        }
+        break;
+      }
+
+      case "zp-call-ended-event": {
+        clearInterval(timer);
+        setState("Call ended", d.result ? String(d.result) : "Pick an outcome below.", "done");
+        if (callId) openOutcome(callId, d);
+        break;
+      }
+
+      case "zp-call-log-completed-event": {
+        if (!callId) return;
+        const res = await report({
+          type: "log",
+          callId,
+          callLogId: d.callLogId,
+          leadId: callLeads[callId] ?? null,
+          direction: d.direction,
+          number: otherParty(d).phoneNumber,
+          result: d.result,
+          duration: d.duration,
+          dateTime: d.dateTime,
+        });
+        if (res?.leadId && !callLeads[callId]) rememberCall(callId, res.leadId);
+        // Mirror the server's New → Contacted move in the queue without a reload
+        const called = queue.find((l) => l.id === res?.leadId);
+        if (called && called.status === "new" && d.direction !== "inbound") {
+          called.status = "contacted";
+          if (selected?.id === called.id) $("[data-lead-status]").innerHTML = statusBadge("contacted");
+          renderQueue();
+        }
+        if (current?.callId === callId && res?.outcome && !outcomeForm.dataset.touched) presetOutcome(res.outcome, "from Zoom");
+        break;
+      }
+
+      case "zp-ai-call-summary-event": {
+        if (!callId) return;
+        await report({
+          type: "summary",
+          callId,
+          leadId: callLeads[callId] ?? null,
+          callSummary: d.callSummary,
+          nextSteps: d.nextSteps,
+          detailedSummary: d.detailedSummary,
+          deleted: d.deleted === true,
+        });
+        $("[data-zoom-status]").textContent = "AI summary saved to the lead.";
+        break;
+      }
+    }
+  });
+
+  // ---- After the call -----------------------------------------------------------------
+  function presetOutcome(key: string, hint: string) {
+    const radio = outcomeForm.querySelector<HTMLInputElement>(`input[name=outcome][value="${key}"]`);
+    if (radio) radio.checked = true;
+    $("[data-outcome-hint]").textContent = hint;
+  }
+
+  function openOutcome(callId: string, d: Record<string, any>) {
+    current = { callId, leadId: callLeads[callId] ?? null, number: otherParty(d).phoneNumber ?? numberInput.value, direction: d.direction === "inbound" ? "inbound" : "outbound" };
+    outcomeForm.reset();
+    delete outcomeForm.dataset.touched;
+    $("[data-outcome-saved]").textContent = "";
+    $("[data-outcome-hint]").textContent = "";
+    const result = String(d.result ?? "").toLowerCase();
+    if (result.includes("voicemail")) presetOutcome("voicemail", "from Zoom");
+    else if (/no answer|missed|cancel|reject/.test(result)) presetOutcome("no_answer", "from Zoom");
+    else if (result.includes("busy")) presetOutcome("busy", "from Zoom");
+    else if (result) presetOutcome("connected", "from Zoom");
+    outcomeForm.hidden = false;
+  }
+
+  outcomeForm.addEventListener("change", () => (outcomeForm.dataset.touched = "1"));
+
+  async function saveOutcome(thenNext: boolean) {
+    if (!current) return;
+    const data = new FormData(outcomeForm);
+    const outcome = data.get("outcome");
+    if (!outcome) {
+      $("[data-outcome-saved]").textContent = "Pick an outcome first.";
+      return;
+    }
+    const res = await report({ type: "outcome", ...current, outcome, notes: data.get("notes") });
+    $("[data-outcome-saved]").textContent = res?.ok ? "Saved to the lead's timeline." : "Couldn't save. Try again.";
+    if (res?.ok && thenNext) {
+      outcomeForm.hidden = true;
+      current = null;
+      setState("Ready", "Zoom will place the call from your Zoom Phone number.");
+      selectNext();
+    }
+  }
+  outcomeForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    saveOutcome(false);
+  });
+  $("[data-save-next]").addEventListener("click", () => saveOutcome(true));
+
+  // ---- Zoom panel collapse (keeps the iframe loaded) -----------------------------------------
+  const panel = $<HTMLElement>("[data-zoom-panel]");
+  function setZoomOpen(open: boolean) {
+    panel.style.height = open ? "600px" : "0px";
+    panel.classList.toggle("border-t", open);
+    $("[data-zoom-toggle]").setAttribute("aria-expanded", String(open));
+    $<HTMLElement>("[data-zoom-chevron]").style.transform = open ? "" : "rotate(180deg)";
+  }
+  $("[data-zoom-toggle]").addEventListener("click", () => setZoomOpen(panel.style.height === "0px"));
+
+  // ---- Start ------------------------------------------------------------------------------------
+  const initial = queue.find((l) => l.id === preselect);
+  if (initial) statusFilter.value = "";
+  renderQueue();
+  if (initial) select(initial);
+  else if (visible[0]) select(visible[0]);
+</script>

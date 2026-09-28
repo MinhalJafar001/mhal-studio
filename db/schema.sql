@@ -58,6 +58,30 @@ CREATE INDEX IF NOT EXISTS leads_email_lower_idx ON leads (lower(email));
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
 ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN ('new', 'contacted', 'replied', 'won', 'lost'));
 
+-- v7: Zoom Phone calls (dialer). One row per Zoom call; the log, AI summary and your notes can arrive in any order.
+CREATE TABLE IF NOT EXISTS calls (
+  call_id           text PRIMARY KEY,
+  lead_id           bigint REFERENCES leads (id) ON DELETE SET NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  started_at        timestamptz,
+  direction         text CHECK (direction IN ('outbound', 'inbound')),
+  number            text,
+  result            text,
+  outcome           text CHECK (outcome IN ('connected', 'voicemail', 'no_answer', 'busy', 'wrong_number', 'other')),
+  outcome_source    text NOT NULL DEFAULT 'auto' CHECK (outcome_source IN ('auto', 'manual')),
+  duration_seconds  integer,
+  call_log_id       text,
+  summary           text,
+  next_steps        text,
+  detailed_summary  text,
+  notes             text
+);
+
+CREATE INDEX IF NOT EXISTS calls_lead_idx ON calls (lead_id, started_at DESC);
+-- Match incoming numbers to leads on their last 10 digits (formatting-insensitive)
+CREATE INDEX IF NOT EXISTS leads_phone_digits_idx ON leads ((right(regexp_replace(coalesce(phone, ''), '\D', '', 'g'), 10)));
+
 -- v6: reusable email templates with {placeholders}
 CREATE TABLE IF NOT EXISTS email_templates (
   id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
