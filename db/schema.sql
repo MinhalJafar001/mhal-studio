@@ -57,3 +57,23 @@ CREATE INDEX IF NOT EXISTS leads_email_lower_idx ON leads (lower(email));
 -- v5: 'replied' status, set automatically when a lead replies (cleared when you email them back)
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
 ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN ('new', 'contacted', 'replied', 'won', 'lost'));
+
+-- v6: reusable email templates with {placeholders}
+CREATE TABLE IF NOT EXISTS email_templates (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  name        text NOT NULL,
+  subject     text NOT NULL,
+  body        text NOT NULL
+);
+
+-- Starter templates, only when the table is empty (edit or delete them in the dashboard)
+INSERT INTO email_templates (name, subject, body)
+SELECT * FROM (VALUES
+  ('Intro: website ideas', 'Quick idea for {business_name}',
+   E'Hi {first_name},\n\nI came across {website} and had a couple of ideas that could help {business_name} turn more visitors into enquiries, mainly around page speed, the mobile layout and a clearer path to getting in touch.\n\nWould you be open to a quick 15-minute call this week? I''m happy to share a few specific suggestions, no strings attached.\n\nIf this isn''t relevant, just let me know and I won''t follow up.\n\n{signature}'),
+  ('Follow-up', 'Re: Quick idea for {business_name}',
+   E'Hi {first_name},\n\nJust following up on my note from last week. Would a quick call be useful? You can pick any time that suits you here: https://cal.com/minhaljafar/15min\n\nIf now isn''t a good time, no worries at all.\n\n{signature}')
+) AS starter(name, subject, body)
+WHERE NOT EXISTS (SELECT 1 FROM email_templates);

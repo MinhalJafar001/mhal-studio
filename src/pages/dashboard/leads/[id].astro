@@ -8,6 +8,7 @@ import { getSql } from "../../../lib/db";
 import { emailConfigured, sendEmail } from "../../../lib/email";
 import { STATUSES, ago, isStatus, statusLabel, telHref, websiteHref, websiteLabel } from "../../../lib/leads";
 import { PHONE } from "../../../lib/site";
+import { fillTemplate, placeholderValues, unfilledPlaceholders } from "../../../lib/templates";
 
 export const prerender = false;
 
@@ -82,7 +83,9 @@ if (Astro.request.method === "POST") {
     else if (!draft.body) emailError = "Write a message.";
     else if (draft.subject.length > 200) emailError = "Subject is too long (200 characters max).";
     else if (draft.body.length > 10000) emailError = "Message is too long (10,000 characters max).";
-    else {
+    else if (unfilledPlaceholders(`${draft.subject}\n${draft.body}`).length) {
+      emailError = `Replace ${unfilledPlaceholders(`${draft.subject}\n${draft.body}`).join(", ")} before sending.`;
+    } else {
       const result = await sendEmail({
         from: OUTREACH_FROM!,
         to: row.email,
@@ -108,6 +111,9 @@ if (Astro.request.method === "POST") {
         return Astro.redirect(`${self}?sent=1`, 303);
       }
     }
+  } else if (action === "delete_lead") {
+    await sql`DELETE FROM leads WHERE id = ${id}`; // notes, emails and replies cascade
+    return Astro.redirect("/dashboard/leads?deleted=1", 303);
   } else if (action === "delete_note") {
     const noteId = String(form.get("note_id") ?? "");
     if (/^\d{1,18}$/.test(noteId)) {
@@ -118,21 +124,29 @@ if (Astro.request.method === "POST") {
   Astro.response.status = 400;
 }
 
-const [leadRows, activity] = await Promise.all([
-  sql`SELECT id, created_at, source, status, business_name, name, position, email, phone, website, service, message
+const templateId = Astro.url.searchParams.get("template") ?? "";
+const [leadRows, activity, templateRows, chosenRows] = await Promise.all([
+  sql`SELECT id, created_at, source, status, business_name, name, position, email, phone, website, service, message, external_id
       FROM leads WHERE id = ${id}`,
   sql`SELECT id, created_at, kind, body, meta FROM lead_activity WHERE lead_id = ${id} ORDER BY created_at DESC, id DESC`,
+  sql`SELECT id, name FROM email_templates ORDER BY name`,
+  /^\d{1,18}$/.test(templateId) ? sql`SELECT subject, body FROM email_templates WHERE id = ${templateId}` : Promise.resolve([]),
 ]);
-const lead = (leadRows as Lead[])[0];
+const lead = (leadRows as (Lead & { external_id: string | null })[])[0];
 if (!lead) return Astro.rewrite("/404");
 const timeline = activity as Activity[];
+const templates = templateRows as { id: string; name: string }[];
+const chosen = (chosenRows as { subject: string; body: string }[])[0];
 
 const title = lead.business_name ?? lead.name ?? lead.email ?? "Lead";
 const sent = Astro.url.searchParams.get("sent") === "1";
 const canEmail = emailConfigured();
-const firstName = lead.name?.split(" ")[0] ?? "there";
 const senderAddress = OUTREACH_FROM!.match(/<([^>]+)>/)?.[1] ?? OUTREACH_FROM!;
-const emailBody = draft?.body ?? `Hi ${firstName},\n\n\n\nBest regards,\nMhal Studio\n${senderAddress} · ${PHONE}\nmhalstudio.com`;
+const signature = `Best regards,\nMhal Studio\n${senderAddress} · ${PHONE}\nmhalstudio.com`;
+const fill = (text: string) => fillTemplate(text, placeholderValues(lead, signature));
+// What's typed wins (after a failed send), then a chosen template, then a blank greeting + signature
+const emailSubject = draft?.subject ?? (chosen ? fill(chosen.subject) : "");
+const emailBody = draft?.body ?? fill(chosen ? chosen.body : "Hi {first_name},\n\n\n\n{signature}");
 const nonce = crypto.randomUUID();
 const subtitle = [lead.business_name ? lead.name : null, lead.position].filter(Boolean).join(" · ");
 const details = [
@@ -187,6 +201,16 @@ const details = [
           {lead.phone && <a href={telHref(lead.phone)} class="rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal">Call</a>}
         </div>
       )}
+
+      <form
+        method="POST"
+        class="mt-6 border-t border-line pt-4"
+        data-confirm={`Delete this lead and its notes, emails and replies? This can't be undone.${lead.external_id ? "\n\nIt came from your Google Sheet: delete the row there too, or the next sync will add it back." : ""}`}
+      >
+        <input type="hidden" name="action" value="delete_lead" />
+        <button type="submit" class="text-[13px] text-slate transition-colors hover:text-red-700">Delete lead</button>
+        {lead.external_id && <p class="mt-1 text-[12px] text-slate/80">From Google Sheet: also remove the row there, or it'll sync back.</p>}
+      </form>
     </section>
 
     <!-- Status, notes, timeline -->
@@ -218,15 +242,25 @@ const details = [
           <h3 class="font-display text-[16px] font-semibold">Send email</h3>
           {lead.email && <span class="truncate text-[13px] text-slate">to {lead.email}</span>}
         </div>
+        {lead.email && templates.length > 0 && (
+          <form method="GET" action={`${self}#compose`} class="mt-3 flex items-center gap-2" data-template-picker>
+            <select name="template" aria-label="Start from a template" class="min-w-0 flex-1 rounded-[10px] border border-line bg-paper px-3 py-2 outline-none transition-colors focus:border-signal">
+              <option value="">Start from a template…</option>
+              {templates.map((t) => <option value={t.id} selected={t.id === templateId}>{t.name}</option>)}
+            </select>
+            <noscript><button type="submit" class="rounded-full border border-line px-4 py-2 font-medium">Use</button></noscript>
+            <a href="/dashboard/email" class="shrink-0 text-[13px] text-slate hover:text-ink">Manage</a>
+          </form>
+        )}
         {!lead.email ? (
           <p class="mt-2 text-slate">No email address on file for this lead.</p>
         ) : (
-          <form method="POST" class="mt-3 space-y-2" data-send-email>
+          <form method="POST" action={`${self}#compose`} class="mt-2 space-y-2" data-send-email>
             <input type="hidden" name="action" value="email" />
             <input type="hidden" name="nonce" value={nonce} />
             <input
               name="subject"
-              value={draft?.subject ?? ""}
+              value={emailSubject}
               maxlength="200"
               required
               placeholder="Subject"
@@ -329,6 +363,19 @@ const details = [
     form.addEventListener("submit", (e) => {
       if (!confirm(form.dataset.confirm)) e.preventDefault();
     });
+  });
+
+  // Picking a template reloads the compose box filled in for this lead; warn if that would discard edits
+  const picker = document.querySelector<HTMLFormElement>("form[data-template-picker]");
+  const composeBody = document.querySelector<HTMLTextAreaElement>("form[data-send-email] textarea");
+  const initialBody = composeBody?.value;
+  picker?.querySelector("select")?.addEventListener("change", (e) => {
+    const select = e.target as HTMLSelectElement;
+    if (composeBody && composeBody.value !== initialBody && !confirm("Replace what you've written with this template?")) {
+      select.value = new URL(location.href).searchParams.get("template") ?? "";
+      return;
+    }
+    picker.submit();
   });
 
   // Show progress and block a second click while the email sends

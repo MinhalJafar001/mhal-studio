@@ -23,9 +23,11 @@ type Row = {
 const sql = getSql();
 let rows: Row[] = [];
 let stats = { sent: 0, week: 0, leads: 0, replies: 0 };
+let templates: { id: string; name: string; subject: string; updated_at: Date }[] = [];
+const flash = { saved: "Template saved.", deleted: "Template deleted." }[Astro.url.searchParams.get("template") ?? ""];
 
 if (sql) {
-  const [list, totals] = await Promise.all([
+  const [list, totals, tpl] = await Promise.all([
     sql`SELECT a.id, a.kind, a.created_at, a.meta->>'subject' AS subject,
                CASE WHEN a.kind = 'reply' THEN a.meta->>'from' ELSE a.meta->>'to' END AS address,
                l.id AS lead_id, COALESCE(l.business_name, l.name, l.email) AS lead, l.status
@@ -38,9 +40,11 @@ if (sql) {
                count(DISTINCT lead_id) FILTER (WHERE kind = 'email')::int AS leads,
                count(*) FILTER (WHERE kind = 'reply')::int AS replies
         FROM lead_activity WHERE kind IN ('email', 'reply')`,
+    sql`SELECT id, name, subject, updated_at FROM email_templates ORDER BY name`,
   ]);
   rows = list as Row[];
   stats = (totals as (typeof stats)[])[0];
+  templates = tpl as typeof templates;
 }
 
 const cards = [
@@ -71,6 +75,39 @@ const cards = [
         <p class="rounded-[10px] border border-line bg-surface px-4 py-2.5 text-slate">Reply tracking is off: replies go to your inbox but aren't logged here until REPLY_TO_ADDRESS is set.</p>
       )}
 
+      {flash && <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">{flash}</p>}
+
+      <!-- Templates -->
+      <section class="rounded-[14px] border border-line bg-surface">
+        <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+          <div>
+            <h2 class="font-display text-[16px] font-semibold">Templates</h2>
+            <p class="text-[13px] text-slate">Pick one when emailing a lead; placeholders like {"{first_name}"} are filled in for them.</p>
+          </div>
+          <a href="/dashboard/email/templates/new" class="flex shrink-0 items-center gap-1.5 rounded-full bg-signal px-4 py-2 font-medium text-white transition-colors hover:bg-signal-hover">
+            <span aria-hidden="true" class="text-[16px] leading-none">+</span> New template
+          </a>
+        </div>
+        {templates.length === 0 ? (
+          <p class="px-4 py-6 text-center text-slate">No templates yet.</p>
+        ) : (
+          <ul class="divide-y divide-line">
+            {templates.map((t) => (
+              <li>
+                <a href={`/dashboard/email/templates/${t.id}`} class="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-paper/60">
+                  <span class="min-w-0">
+                    <span class="block font-medium">{t.name}</span>
+                    <span class="block truncate text-[13px] text-slate">{t.subject}</span>
+                  </span>
+                  <span class="shrink-0 text-[12px] text-slate">Edited {ago(t.updated_at)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <h2 class="pt-1 font-display text-[16px] font-semibold">History</h2>
       {rows.length === 0 ? (
         <EmptyState heading="No emails yet" text="Open a lead and use Send email. Emails you send, and replies to them, are listed here." />
       ) : (

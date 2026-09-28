@@ -30,6 +30,7 @@ const params = Astro.url.searchParams;
 const source = SOURCES.some((s) => s.key === params.get("source")) ? params.get("source")! : "all";
 const q = (params.get("q") ?? "").trim().slice(0, 100);
 const added = params.get("added") === "1";
+const deleted = params.get("deleted") === "1";
 const status = isStatus(params.get("status")) ? params.get("status")! : "";
 
 const sql = getSql();
@@ -112,6 +113,9 @@ const filtered = Boolean(q || status || source !== "all");
 
       {added && (
         <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">Lead added.</p>
+      )}
+      {deleted && (
+        <p role="status" class="rounded-[10px] border border-line bg-surface px-4 py-2.5 text-slate">Lead deleted.</p>
       )}
 
       {replied > 0 && status !== "replied" && (
