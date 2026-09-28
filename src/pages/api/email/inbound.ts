@@ -12,7 +12,11 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ request, url }) => {
   const raw = await request.text();
-  if (!(await verifyWebhook(request.headers, raw))) return new Response("Invalid signature", { status: 401 });
+  const invalid = await verifyWebhook(request.headers, raw);
+  if (invalid) {
+    console.warn("[inbound] rejected webhook:", invalid);
+    return new Response(`Invalid signature: ${invalid}`, { status: 401 });
+  }
 
   let event: { type?: string; data?: { email_id?: string } };
   try {

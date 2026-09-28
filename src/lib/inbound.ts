@@ -5,19 +5,26 @@ import { safeEqual } from "./auth";
 
 const TOLERANCE_SECONDS = 5 * 60;
 
-// Verifies a Resend (Svix) webhook: HMAC-SHA256 over "<id>.<timestamp>.<raw body>" with the
-// base64 key after "whsec_", compared against every "v1,<sig>" entry in svix-signature.
-export async function verifyWebhook(headers: Headers, rawBody: string) {
-  if (!RESEND_WEBHOOK_SECRET?.startsWith("whsec_")) return false;
-  const id = headers.get("svix-id");
-  const timestamp = headers.get("svix-timestamp");
-  const signatures = headers.get("svix-signature");
-  if (!id || !timestamp || !signatures || !/^\d+$/.test(timestamp)) return false;
-  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > TOLERANCE_SECONDS) return false;
+// Verifies a Resend (Svix / Standard Webhooks) webhook: HMAC-SHA256 over "<id>.<timestamp>.<raw body>"
+// with the base64 key after "whsec_", compared against every "v1,<sig>" entry in the signature header.
+// Returns null when valid, otherwise a short reason (safe to show: never includes the secret).
+export async function verifyWebhook(headers: Headers, rawBody: string): Promise<string | null> {
+  const secret = RESEND_WEBHOOK_SECRET?.trim().replace(/^["']|["']$/g, "");
+  if (!secret) return "webhook secret not configured";
+  if (!secret.startsWith("whsec_")) return "webhook secret should start with whsec_";
+
+  const header = (name: string) => headers.get(`svix-${name}`) ?? headers.get(`webhook-${name}`);
+  const id = header("id");
+  const timestamp = header("timestamp");
+  const signatures = header("signature");
+  if (!id || !timestamp || !signatures) return "missing signature headers";
+  if (!/^\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > TOLERANCE_SECONDS) {
+    return "timestamp outside 5-minute window";
+  }
 
   const key = await crypto.subtle.importKey(
     "raw",
-    Buffer.from(RESEND_WEBHOOK_SECRET.slice("whsec_".length), "base64"),
+    Buffer.from(secret.slice("whsec_".length), "base64"),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -25,10 +32,11 @@ export async function verifyWebhook(headers: Headers, rawBody: string) {
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${id}.${timestamp}.${rawBody}`));
   const expected = Buffer.from(mac).toString("base64");
 
-  return signatures
+  const valid = signatures
     .split(" ")
     .map((s) => s.split(","))
     .some(([version, sig]) => version === "v1" && sig !== undefined && safeEqual(sig, expected));
+  return valid ? null : "signature mismatch (check RESEND_WEBHOOK_SECRET matches this webhook)";
 }
 
 export type ReceivedEmail = {
