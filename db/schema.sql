@@ -82,6 +82,23 @@ CREATE INDEX IF NOT EXISTS calls_lead_idx ON calls (lead_id, started_at DESC);
 -- Match incoming numbers to leads on their last 10 digits (formatting-insensitive)
 CREATE INDEX IF NOT EXISTS leads_phone_digits_idx ON leads ((right(regexp_replace(coalesce(phone, ''), '\D', '', 'g'), 10)));
 
+-- v8: calls placed from the dashboard via the Zoom desktop app (zoomphonecall://) are recorded as pending
+-- (call_id = local_ref = 'dash-…') and merged with Zoom's server-side call record when its webhook arrives.
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS local_ref text;
+CREATE UNIQUE INDEX IF NOT EXISTS calls_local_ref_key ON calls (local_ref);
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS zoom_logged boolean NOT NULL DEFAULT false;
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS ai_summary_id text;
+
+-- Every Zoom webhook, stored raw so records can be re-processed if Zoom's payload format changes
+CREATE TABLE IF NOT EXISTS zoom_events (
+  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  received_at  timestamptz NOT NULL DEFAULT now(),
+  request_id   text UNIQUE,
+  event        text,
+  payload      jsonb NOT NULL,
+  error        text
+);
+
 -- v6: reusable email templates with {placeholders}
 CREATE TABLE IF NOT EXISTS email_templates (
   id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

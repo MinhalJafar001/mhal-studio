@@ -45,6 +45,7 @@ type Activity = {
     summary?: string | null;
     next_steps?: string | null;
     detailed_summary?: string | null;
+    zoom_logged?: boolean;
   } | null;
 };
 
@@ -146,7 +147,7 @@ const [leadRows, activity, templateRows, chosenRows] = await Promise.all([
   sql`SELECT id::text AS id, created_at, kind, body, meta FROM lead_activity WHERE lead_id = ${id}
       UNION ALL
       SELECT 'call-' || call_id, COALESCE(started_at, created_at), 'call', notes,
-             jsonb_build_object('direction', direction, 'outcome', outcome, 'duration', duration_seconds, 'number', number,
+             jsonb_build_object('direction', direction, 'outcome', outcome, 'duration', duration_seconds, 'number', number, 'zoom_logged', zoom_logged,
                                 'summary', summary, 'next_steps', next_steps, 'detailed_summary', detailed_summary)
       FROM calls WHERE lead_id = ${id}
       ORDER BY created_at DESC, id DESC`,
@@ -345,7 +346,7 @@ const details = [
                     {(a.kind === "email" || a.kind === "reply") && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
                     {a.kind === "call" && (
                       <span class="font-normal text-slate">
-                        {" "}· {a.meta?.direction === "inbound" ? "incoming" : "outgoing"} · {formatDuration(a.meta?.duration ?? null)}{" "}
+                        {" "}· {a.meta?.direction === "inbound" ? "incoming" : "outgoing"} · {a.meta?.zoom_logged === false ? "waiting for Zoom" : formatDuration(a.meta?.duration ?? null)}{" "}
                         {a.meta?.outcome && <span class={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${outcomeBadge(a.meta.outcome)}`}>{outcomeLabel(a.meta.outcome)}</span>}
                       </span>
                     )}

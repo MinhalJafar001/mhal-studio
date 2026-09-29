@@ -34,6 +34,11 @@ export default defineConfig({
       REPLY_TO_ADDRESS: envField.string({ context: 'server', access: 'secret', optional: true }),
       RESEND_WEBHOOK_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
       INBOX_FORWARD_TO: envField.string({ context: 'server', access: 'secret', optional: true, default: 'connect@mhalstudio.com' }),
+      // Zoom Server-to-Server OAuth app: call history + AI call summaries (webhooks to /api/zoom/webhook)
+      ZOOM_ACCOUNT_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ZOOM_CLIENT_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ZOOM_CLIENT_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
+      ZOOM_WEBHOOK_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
 
