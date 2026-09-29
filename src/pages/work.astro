@@ -1,10 +1,14 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+
+// Cards link only to case studies that exist in src/content/work/
+const caseStudies = new Set((await getCollection("work")).map((entry) => entry.id));
 const projects = [
-  { name: "Profound Publishers", cat: "Website Redesign", result: "A faster, cleaner site that reflects their authority.", img: "/work/profound-publishers.png", slug: "profound-publishers" },
-  { name: "Curated Kitchens & Bath", cat: "Brand Identity", result: "A polished identity for a premium remodeler.", img: "/work/curated-kitchens.png", slug: "curated-kitchens-bath" },
-  { name: "Dreamerce", cat: "Ad & Visual Design", result: "Scroll-stopping creative built to perform.", img: "/work/dreamerce.png", slug: "dreamerce" },
-  { name: "Kids Studio", cat: "Landing Page", result: "A playful, high-converting landing concept.", img: "/work/kids-studio.png", slug: "kids-studio" },
+  { name: "Profound Publishers", cat: "Website Redesign", result: "A faster, cleaner site that reflects their authority.", img: "/work/profound-publishers.webp", slug: "profound-publishers" },
+  { name: "Curated Kitchens & Bath", cat: "Brand Identity", result: "A polished identity for a premium remodeler.", img: "/work/curated-kitchens.webp", slug: "curated-kitchens-bath" },
+  { name: "Dreamerce", cat: "Ad & Visual Design", result: "Scroll-stopping creative built to perform.", img: "/work/dreamerce.webp", slug: "dreamerce" },
+  { name: "Kids Studio", cat: "Landing Page", result: "A playful, high-converting landing concept.", img: "/work/kids-studio.webp", slug: "kids-studio" },
   // TODO: swap in real project images
   { name: "Revive Real Estate", cat: "Ongoing Design", result: "Consistent, on-brand design support at scale.", img: unsplash("1560518883-ce09059eeffa"), slug: "revive-real-estate" },
   { name: "Powered Now", cat: "Brand Animation", result: "Motion that brought the brand to life.", img: unsplash("1620712943543-bcc4688e7485"), slug: "powered-now" },
@@ -24,21 +28,28 @@ function unsplash(id) {
     </div>
 
     <div class="mt-14 grid gap-6 md:grid-cols-2">
-      {projects.map((p) => (
-        <a href={`/work/${p.slug}`} class="group block overflow-hidden rounded-[24px] border border-line bg-surface transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-40px_rgba(14,17,22,0.35)]">
-          <div class="h-[52vw] max-h-[360px] overflow-hidden md:h-[320px]">
-            <img src={p.img} alt={p.name} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-          </div>
-          <div class="flex items-end justify-between gap-4 p-6">
-            <div>
-              <span class="text-[13px] font-medium text-signal">{p.cat}</span>
-              <h2 class="mt-1.5 font-display text-[24px] font-semibold text-ink">{p.name}</h2>
-              <p class="mt-1 text-[15px] text-slate">{p.result}</p>
+      {projects.map((p) => {
+        const linked = caseStudies.has(p.slug);
+        const Card = linked ? "a" : "div";
+        return (
+          <Card
+            href={linked ? `/work/${p.slug}` : undefined}
+            class={`group block overflow-hidden rounded-[24px] border border-line bg-surface ${linked ? "transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-40px_rgba(14,17,22,0.35)]" : ""}`}
+          >
+            <div class="h-[52vw] max-h-[360px] overflow-hidden md:h-[320px]">
+              <img src={p.img} alt={p.name} loading="lazy" class={`h-full w-full object-cover ${linked ? "transition-transform duration-700 group-hover:scale-105" : ""}`} />
             </div>
-            <span class="shrink-0 text-signal transition-transform duration-300 group-hover:translate-x-1">→</span>
-          </div>
-        </a>
-      ))}
+            <div class="flex items-end justify-between gap-4 p-6">
+              <div>
+                <span class="text-[13px] font-medium text-signal">{p.cat}</span>
+                <h2 class="mt-1.5 font-display text-[24px] font-semibold text-ink">{p.name}</h2>
+                <p class="mt-1 text-[15px] text-slate">{p.result}</p>
+              </div>
+              {linked && <span class="shrink-0 text-signal transition-transform duration-300 group-hover:translate-x-1">→ <span class="sr-only">Read the case study</span></span>}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   </section>
 </Layout>

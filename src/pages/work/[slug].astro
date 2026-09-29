@@ -14,7 +14,8 @@ export async function getStaticPaths() {
 const { project } = Astro.props;
 const { Content } = await render(project);
 const d = project.data;
-const cover = `https://images.unsplash.com/photo-${d.cover}?w=1400&h=760&fit=crop&auto=format&q=80`;
+// cover: a site path ("/work/….webp") or, for older entries, an Unsplash photo ID
+const cover = d.cover.startsWith("/") ? d.cover : `https://images.unsplash.com/photo-${d.cover}?w=1400&h=760&fit=crop&auto=format&q=80`;
 ---
 <Layout title={`${d.client} — Mhal Studio`} description={d.summary}>
   <article class="mx-auto max-w-4xl px-6 py-16 md:py-24">
