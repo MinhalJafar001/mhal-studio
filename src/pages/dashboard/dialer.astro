@@ -223,6 +223,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     sessionStorage.setItem("dialer-call-leads", JSON.stringify(callLeads));
   };
   let pendingLeadId: string | null = null; // lead whose call we just asked Zoom to place
+  let noResponse: number | undefined; // hint if Zoom never starts ringing (it doesn't report errors to the page)
 
   const statusBadge = (key: string) => {
     const s = STATUSES.find((x) => x.key === key) ?? STATUSES[0];
@@ -314,6 +315,16 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     iframe.contentWindow?.postMessage({ type: "zp-make-call", data: { number, autoDial: true } }, ZOOM_ORIGIN);
     setState("Calling…", `Asking Zoom to dial ${number}`, "live");
     setZoomOpen(true);
+    clearTimeout(noResponse);
+    noResponse = window.setTimeout(
+      () =>
+        setState(
+          "Zoom hasn't started the call",
+          "Check the Zoom panel for an error. The Zoom desktop app must be open and signed in to the same account (it carries the audio).",
+          "idle"
+        ),
+      10000
+    );
   });
 
   const report = (payload: Record<string, unknown>) =>
@@ -327,6 +338,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     if (e.origin !== ZOOM_ORIGIN || !e.data?.type) return;
     const d = e.data.data ?? {};
     const callId: string | undefined = d.callId;
+    if (e.data.type.startsWith("zp-call-")) clearTimeout(noResponse);
 
     switch (e.data.type) {
       case "zp-call-ringing-event":
