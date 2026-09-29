@@ -346,7 +346,7 @@ const details = [
                     {(a.kind === "email" || a.kind === "reply") && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}
                     {a.kind === "call" && (
                       <span class="font-normal text-slate">
-                        {" "}· {a.meta?.direction === "inbound" ? "incoming" : "outgoing"} · {a.meta?.zoom_logged === false ? "waiting for Zoom" : formatDuration(a.meta?.duration ?? null)}{" "}
+                        {" "}· {a.meta?.direction === "inbound" ? "incoming" : "outgoing"} · {a.meta?.zoom_logged === false ? (Date.now() - new Date(a.created_at).getTime() > 2 * 3600_000 ? "no Zoom record" : "waiting for Zoom") : formatDuration(a.meta?.duration ?? null)}{" "}
                         {a.meta?.outcome && <span class={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${outcomeBadge(a.meta.outcome)}`}>{outcomeLabel(a.meta.outcome)}</span>}
                       </span>
                     )}

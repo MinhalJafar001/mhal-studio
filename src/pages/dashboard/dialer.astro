@@ -162,7 +162,8 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
                   <p class="font-medium">
                     {c.lead_id ? <a href={`/dashboard/leads/${c.lead_id}`} class="hover:text-signal hover:underline">{c.lead}</a> : <span>{c.number ?? "Unknown number"}</span>}
                     <span class="font-normal text-slate">
-                      {" "}· {c.direction === "inbound" ? "Incoming" : "Outgoing"}{c.zoom_logged ? ` · ${formatDuration(c.duration_seconds)}` : " · waiting for Zoom"}
+                      {" "}· {c.direction === "inbound" ? "Incoming" : "Outgoing"}
+                      {c.zoom_logged ? ` · ${formatDuration(c.duration_seconds)}` : c.started_at && Date.now() - new Date(c.started_at).getTime() > 2 * 3600_000 ? " · no Zoom record" : " · waiting for Zoom"}
                     </span>
                   </p>
                   {c.summary && <p class="mt-0.5 line-clamp-2 text-[13px] text-slate">✨ {c.summary}</p>}

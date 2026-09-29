@@ -89,6 +89,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS calls_local_ref_key ON calls (local_ref);
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS zoom_logged boolean NOT NULL DEFAULT false;
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS ai_summary_id text;
 
+-- v9: 'failed' outcome (Zoom result "call_failed")
+ALTER TABLE calls DROP CONSTRAINT IF EXISTS calls_outcome_check;
+ALTER TABLE calls ADD CONSTRAINT calls_outcome_check CHECK (outcome IN ('connected', 'voicemail', 'no_answer', 'busy', 'failed', 'wrong_number', 'other'));
+UPDATE calls SET outcome = 'failed' WHERE outcome_source = 'auto' AND lower(coalesce(result, '')) LIKE '%fail%';
+
 -- Every Zoom webhook, stored raw so records can be re-processed if Zoom's payload format changes
 CREATE TABLE IF NOT EXISTS zoom_events (
   id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
