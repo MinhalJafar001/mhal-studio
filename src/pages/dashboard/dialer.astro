@@ -50,14 +50,13 @@ const queueData = queue.map((l) => ({
   dial: toDialable(l.phone),
   status: l.status,
 }));
-const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 ---
 <DashboardLayout title="Dialer">
   {!sql ? (
     <EmptyState heading="Database not connected" text="Set DATABASE_URL to use the dialer." />
   ) : (
     <div class="space-y-5">
-      <div class="grid gap-5 xl:grid-cols-[minmax(260px,1fr)_minmax(320px,1.2fr)_auto]">
+      <div class="grid gap-5 xl:grid-cols-[minmax(240px,1fr)_auto_minmax(280px,1fr)]">
         <!-- Queue -->
         <section class="flex max-h-[640px] min-h-[320px] flex-col rounded-[14px] border border-line bg-surface">
           <div class="space-y-2 border-b border-line p-3">
@@ -77,42 +76,44 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
           <p data-queue-empty hidden class="p-6 text-center text-slate">No leads with a phone number match this filter.</p>
         </section>
 
-        <!-- Current lead + dial pad -->
-        <section class="rounded-[14px] border border-line bg-surface p-5">
+        <!-- Zoom Phone (Smart Embed): the dialer itself. Calls and events come from here. -->
+        <section class="h-fit rounded-[14px] border border-line bg-surface xl:w-[372px]">
+          <div class="px-4 py-3">
+            <h2 class="font-display text-[16px] font-semibold">Zoom Phone</h2>
+            <p data-zoom-status class="text-[12px] text-slate">Pick a lead to load their number, then press Zoom's green call button. Keep the Zoom desktop app open for audio.</p>
+          </div>
+          <div class="border-t border-line px-2.5 pb-2.5">
+            <iframe
+              data-zoom-iframe
+              src="https://applications.zoom.us/integration/phone/embeddablephone/home"
+              allow="clipboard-read; clipboard-write https://applications.zoom.us"
+              title="Zoom Phone"
+              class="mt-2.5 h-[580px] w-[350px] max-w-full rounded-[10px] border-0"
+            ></iframe>
+          </div>
+        </section>
+
+        <!-- Current lead, live call status, outcome -->
+        <section class="h-fit rounded-[14px] border border-line bg-surface p-5">
           <div data-lead-card>
-            <p class="text-[12px] font-medium uppercase tracking-wide text-slate">Calling</p>
-            <h2 data-lead-title class="mt-1 font-display text-[22px] font-semibold leading-tight">Pick a lead or dial a number</h2>
+            <p class="text-[12px] font-medium uppercase tracking-wide text-slate">Current lead</p>
+            <h2 data-lead-title class="mt-1 font-display text-[22px] font-semibold leading-tight">Pick a lead from the queue</h2>
             <p data-lead-subtitle class="mt-0.5 text-slate"></p>
+            <p data-lead-phone class="mt-1 font-medium"></p>
             <div class="mt-2 flex items-center gap-2">
               <span data-lead-status></span>
               <a data-lead-link hidden class="text-[13px] text-signal hover:underline">Open lead →</a>
             </div>
-          </div>
-
-          <label class="mt-4 block">
-            <span class="sr-only">Number to call</span>
-            <input data-number type="tel" inputmode="tel" placeholder="+1 555 000 0000" class="w-full rounded-[12px] border border-line bg-paper px-4 py-3 text-center font-display text-[24px] font-semibold tracking-wide outline-none transition-colors focus:border-signal focus:bg-surface" />
-          </label>
-
-          <div class="mx-auto mt-3 grid max-w-[280px] grid-cols-3 gap-2">
-            {keys.map((k) => (
-              <button type="button" data-key={k} class="rounded-[12px] border border-line bg-paper py-2.5 font-display text-[18px] font-semibold transition-colors hover:border-signal/40 hover:bg-signal/5 active:bg-signal/10">{k}</button>
-            ))}
-          </div>
-
-          <div class="mx-auto mt-4 flex max-w-[280px] items-center gap-2">
-            <button type="button" data-backspace aria-label="Delete last digit" class="rounded-full border border-line px-4 py-3 text-slate transition-colors hover:text-ink">⌫</button>
-            <button type="button" data-call class="flex flex-1 items-center justify-center gap-2 rounded-full bg-signal py-3 font-medium text-white transition-colors hover:bg-signal-hover disabled:cursor-not-allowed disabled:opacity-50">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              Call
-            </button>
-            <button type="button" data-next title="Select the next lead in the queue" class="rounded-full border border-line px-4 py-3 font-medium transition-colors hover:border-signal hover:text-signal">Next</button>
+            <div class="mt-4 flex gap-2">
+              <button type="button" data-reload-number class="rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal disabled:opacity-50" disabled>Load number in Zoom</button>
+              <button type="button" data-next title="Load the next lead in the queue" class="rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal">Next lead</button>
+            </div>
           </div>
 
           <!-- Live call status -->
           <div data-call-state class="mt-4 rounded-[12px] bg-paper px-4 py-3 text-center" aria-live="polite">
             <p data-state-label class="font-medium">Ready</p>
-            <p data-state-detail class="text-[13px] text-slate">Zoom will place the call from your Zoom Phone number.</p>
+            <p data-state-detail class="text-[13px] text-slate">Calls made in the Zoom panel are logged here automatically.</p>
           </div>
 
           <!-- After a call: outcome + notes -->
@@ -138,26 +139,6 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
               </div>
             </div>
           </form>
-        </section>
-
-        <!-- Zoom Phone (Smart Embed): carries the call; stays loaded while collapsed -->
-        <section class="rounded-[14px] border border-line bg-surface xl:w-[372px]">
-          <button type="button" data-zoom-toggle aria-expanded="true" class="flex w-full items-center justify-between gap-2 px-4 py-3 text-left">
-            <span>
-              <span class="block font-display text-[16px] font-semibold">Zoom Phone</span>
-              <span data-zoom-status class="block text-[12px] text-slate">Sign in once; keep the Zoom desktop app open for audio.</span>
-            </span>
-            <span data-zoom-chevron aria-hidden="true" class="text-slate transition-transform">⌃</span>
-          </button>
-          <div data-zoom-panel class="overflow-hidden border-t border-line px-2.5 pb-2.5 transition-[height] duration-300" style="height: 600px">
-            <iframe
-              data-zoom-iframe
-              src="https://applications.zoom.us/integration/phone/embeddablephone/home"
-              allow="clipboard-read; clipboard-write https://applications.zoom.us"
-              title="Zoom Phone"
-              class="mt-2.5 h-[580px] w-[350px] max-w-full rounded-[10px] border-0"
-            ></iframe>
-          </div>
         </section>
       </div>
 
@@ -207,8 +188,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   const listEl = $<HTMLUListElement>("[data-queue]");
   const statusFilter = $<HTMLSelectElement>("[data-queue-status]");
   const searchInput = $<HTMLInputElement>("[data-queue-search]");
-  const numberInput = $<HTMLInputElement>("[data-number]");
-  const callButton = $<HTMLButtonElement>("[data-call]");
+  const reloadButton = $<HTMLButtonElement>("[data-reload-number]");
   const outcomeForm = $<HTMLFormElement>("[data-outcome-form]");
   const iframe = $<HTMLIFrameElement>("[data-zoom-iframe]");
 
@@ -222,8 +202,6 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     callLeads[callId] = leadId;
     sessionStorage.setItem("dialer-call-leads", JSON.stringify(callLeads));
   };
-  let pendingLeadId: string | null = null; // lead whose call we just asked Zoom to place
-  let noResponse: number | undefined; // hint if Zoom never starts ringing (it doesn't report errors to the page)
 
   const statusBadge = (key: string) => {
     const s = STATUSES.find((x) => x.key === key) ?? STATUSES[0];
@@ -231,6 +209,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   };
   const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
   const digits = (s: string) => s.replace(/\D/g, "");
+  const last10 = (s: string) => digits(s).slice(-10);
 
   // ---- Queue -------------------------------------------------------------
   function renderQueue() {
@@ -252,13 +231,15 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
 
   function select(lead: Lead | null) {
     selected = lead;
-    $("[data-lead-title]").textContent = lead?.title ?? "Dialing a number";
+    $("[data-lead-title]").textContent = lead?.title ?? "Pick a lead from the queue";
     $("[data-lead-subtitle]").textContent = lead?.subtitle ?? "";
+    $("[data-lead-phone]").textContent = lead?.phone ?? "";
+    reloadButton.disabled = !lead;
     $("[data-lead-status]").innerHTML = lead ? statusBadge(lead.status) : "";
     const link = $<HTMLAnchorElement>("[data-lead-link]");
     link.hidden = !lead;
     if (lead) link.href = `/dashboard/leads/${lead.id}`;
-    numberInput.value = lead?.dial ?? numberInput.value;
+    if (lead) loadInZoom(lead);
     renderQueue();
     listEl.querySelector(`[data-id="${lead?.id}"]`)?.scrollIntoView({ block: "nearest" });
   }
@@ -277,18 +258,6 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   searchInput.addEventListener("input", renderQueue);
   $("[data-next]").addEventListener("click", selectNext);
 
-  // ---- Dial pad ------------------------------------------------------------
-  document.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((b) =>
-    b.addEventListener("click", () => {
-      numberInput.value += b.dataset.key;
-      if (selected && digits(numberInput.value) !== digits(selected.dial)) select(null);
-    })
-  );
-  $("[data-backspace]").addEventListener("click", () => (numberInput.value = numberInput.value.slice(0, -1)));
-  numberInput.addEventListener("input", () => {
-    if (selected && digits(numberInput.value) !== digits(selected.dial)) select(null);
-  });
-
   // ---- Call state display -----------------------------------------------------
   function setState(label: string, detail = "", tone: "idle" | "live" | "done" = "idle") {
     $("[data-state-label]").textContent = label;
@@ -305,27 +274,13 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   }
 
   // ---- Talking to Zoom ------------------------------------------------------------
-  callButton.addEventListener("click", () => {
-    const number = numberInput.value.trim();
-    if (digits(number).length < 7) {
-      setState("Enter a number", "At least 7 digits.");
-      return;
-    }
-    pendingLeadId = selected?.id ?? null;
-    iframe.contentWindow?.postMessage({ type: "zp-make-call", data: { number, autoDial: true } }, ZOOM_ORIGIN);
-    setState("Calling…", `Asking Zoom to dial ${number}`, "live");
-    setZoomOpen(true);
-    clearTimeout(noResponse);
-    noResponse = window.setTimeout(
-      () =>
-        setState(
-          "Zoom hasn't started the call",
-          "Check the Zoom panel for an error. The Zoom desktop app must be open and signed in to the same account (it carries the audio).",
-          "idle"
-        ),
-      10000
-    );
-  });
+  // Puts the number into Zoom's dialer without calling; you press Zoom's green button
+  let inCall = false;
+  function loadInZoom(lead: Lead) {
+    iframe.contentWindow?.postMessage({ type: "zp-make-call", data: { number: lead.dial, autoDial: false } }, ZOOM_ORIGIN);
+    if (!inCall) setState("Ready", `${lead.phone} is loaded in Zoom. Press Zoom's green call button.`);
+  }
+  reloadButton.addEventListener("click", () => selected && loadInZoom(selected));
 
   const report = (payload: Record<string, unknown>) =>
     fetch("/dashboard/api/calls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
@@ -338,7 +293,6 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     if (e.origin !== ZOOM_ORIGIN || !e.data?.type) return;
     const d = e.data.data ?? {};
     const callId: string | undefined = d.callId;
-    if (e.data.type.startsWith("zp-call-")) clearTimeout(noResponse);
 
     switch (e.data.type) {
       case "zp-call-ringing-event":
@@ -346,11 +300,13 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
         if (!callId) return;
         const direction = d.direction === "inbound" ? "inbound" : "outbound";
         if (!(callId in callLeads)) {
-          const leadId = direction === "outbound" ? pendingLeadId : null;
+          // Tie the call to the selected lead when the number matches (the server also matches by number)
+          const number = otherParty(d).phoneNumber ?? "";
+          const leadId = selected && last10(number) && last10(number) === last10(selected.dial) ? selected.id : null;
           rememberCall(callId, leadId);
-          pendingLeadId = null;
           report({ type: "start", callId, leadId, direction, number: otherParty(d).phoneNumber, dateTime: d.dateTime });
         }
+        inCall = true;
         const who = otherParty(d).name || otherParty(d).phoneNumber || "";
         if (e.data.type === "zp-call-ringing-event") setState(direction === "inbound" ? "Incoming call" : "Ringing…", who, "live");
         else {
@@ -361,6 +317,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
       }
 
       case "zp-call-ended-event": {
+        inCall = false;
         clearInterval(timer);
         setState("Call ended", d.result ? String(d.result) : "Pick an outcome below.", "done");
         if (callId) openOutcome(callId, d);
@@ -417,7 +374,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   }
 
   function openOutcome(callId: string, d: Record<string, any>) {
-    current = { callId, leadId: callLeads[callId] ?? null, number: otherParty(d).phoneNumber ?? numberInput.value, direction: d.direction === "inbound" ? "inbound" : "outbound" };
+    current = { callId, leadId: callLeads[callId] ?? null, number: otherParty(d).phoneNumber ?? selected?.dial ?? "", direction: d.direction === "inbound" ? "inbound" : "outbound" };
     outcomeForm.reset();
     delete outcomeForm.dataset.touched;
     $("[data-outcome-saved]").textContent = "";
@@ -445,7 +402,6 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
     if (res?.ok && thenNext) {
       outcomeForm.hidden = true;
       current = null;
-      setState("Ready", "Zoom will place the call from your Zoom Phone number.");
       selectNext();
     }
   }
@@ -455,15 +411,8 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
   });
   $("[data-save-next]").addEventListener("click", () => saveOutcome(true));
 
-  // ---- Zoom panel collapse (keeps the iframe loaded) -----------------------------------------
-  const panel = $<HTMLElement>("[data-zoom-panel]");
-  function setZoomOpen(open: boolean) {
-    panel.style.height = open ? "600px" : "0px";
-    panel.classList.toggle("border-t", open);
-    $("[data-zoom-toggle]").setAttribute("aria-expanded", String(open));
-    $<HTMLElement>("[data-zoom-chevron]").style.transform = open ? "" : "rotate(180deg)";
-  }
-  $("[data-zoom-toggle]").addEventListener("click", () => setZoomOpen(panel.style.height === "0px"));
+  // Zoom's panel may still be loading when the first lead is selected; send the number again once it's ready
+  iframe.addEventListener("load", () => setTimeout(() => selected && loadInZoom(selected), 1500));
 
   // ---- Start ------------------------------------------------------------------------------------
   const initial = queue.find((l) => l.id === preselect);
