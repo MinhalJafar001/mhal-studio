@@ -82,6 +82,13 @@ CREATE INDEX IF NOT EXISTS calls_lead_idx ON calls (lead_id, started_at DESC);
 -- Match incoming numbers to leads on their last 10 digits (formatting-insensitive)
 CREATE INDEX IF NOT EXISTS leads_phone_digits_idx ON leads ((right(regexp_replace(coalesce(phone, ''), '\D', '', 'g'), 10)));
 
+-- v11: dashboard settings (profile, signature, password hash, session epoch, last sheet sync)
+CREATE TABLE IF NOT EXISTS settings (
+  key         text PRIMARY KEY,
+  value       jsonb NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- v10: 'interested' status (set from the Google Sheet's Interested column, or by hand)
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
 ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN ('new', 'contacted', 'replied', 'interested', 'won', 'lost'));

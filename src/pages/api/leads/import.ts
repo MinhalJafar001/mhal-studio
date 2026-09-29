@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { SHEET_SYNC_SECRET } from "astro:env/server";
 import { getSql } from "../../../lib/db";
 import { safeEqual } from "../../../lib/auth";
+import { setSetting } from "../../../lib/settings";
 
 export const prerender = false;
 
@@ -113,7 +114,9 @@ export const POST: APIRoute = async ({ request }) => {
     );
 
     const inserted = result.filter((r) => r.inserted).length;
-    return json(200, { ok: true, received: body.leads.length, inserted, updated: result.length - inserted, statusChanged: moved.length, skipped });
+    const summary = { received: body.leads.length, inserted, updated: result.length - inserted, statusChanged: moved.length, skipped };
+    await setSetting("sheet_last_sync", { at: new Date().toISOString(), ...summary }).catch(() => {}); // shown on Settings
+    return json(200, { ok: true, ...summary });
   } catch (err) {
     console.error("[leads/import] upsert failed", err);
     return json(500, { ok: false, error: "Failed to save leads." });

@@ -7,7 +7,7 @@ import { OUTREACH_FROM, REPLY_TO_ADDRESS } from "astro:env/server";
 import { getSql } from "../../../lib/db";
 import { emailConfigured, sendEmail } from "../../../lib/email";
 import { STATUSES, ago, isStatus, statusLabel, telHref, websiteHref, websiteLabel } from "../../../lib/leads";
-import { PHONE } from "../../../lib/site";
+import { emailSignature } from "../../../lib/settings";
 import { fillTemplate, placeholderValues, unfilledPlaceholders } from "../../../lib/templates";
 import { formatDuration, outcomeBadge, outcomeLabel } from "../../../lib/calls";
 
@@ -163,8 +163,7 @@ const chosen = (chosenRows as { subject: string; body: string }[])[0];
 const title = lead.business_name ?? lead.name ?? lead.email ?? "Lead";
 const sent = Astro.url.searchParams.get("sent") === "1";
 const canEmail = emailConfigured();
-const senderAddress = OUTREACH_FROM!.match(/<([^>]+)>/)?.[1] ?? OUTREACH_FROM!;
-const signature = `Best regards,\nMhal Studio\n${senderAddress} · ${PHONE}\nmhalstudio.com`;
+const signature = await emailSignature(); // from Settings, or the default
 const fill = (text: string) => fillTemplate(text, placeholderValues(lead, signature));
 // What's typed wins (after a failed send), then a chosen template, then a blank greeting + signature
 const emailSubject = draft?.subject ?? (chosen ? fill(chosen.subject) : "");

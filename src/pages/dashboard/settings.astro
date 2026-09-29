@@ -1,9 +1,279 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
-import EmptyState from "../../components/dashboard/EmptyState.astro";
+import {
+  ALERT_EMAIL_TO,
+  INBOX_FORWARD_TO,
+  OUTREACH_FROM,
+  REPLY_TO_ADDRESS,
+  RESEND_API_KEY,
+  RESEND_WEBHOOK_SECRET,
+  SHEET_SYNC_SECRET,
+  ZOOM_WEBHOOK_SECRET,
+} from "astro:env/server";
+import { getSql } from "../../lib/db";
+import { ago } from "../../lib/leads";
+import { zoomApiConfigured } from "../../lib/zoom";
+import { defaultSignature, deleteSetting, getSettings, setSetting } from "../../lib/settings";
+import { SESSION_COOKIE, SESSION_MAX_AGE, bumpSessionEpoch, checkPassword, createSession, passwordSource, setPassword } from "../../lib/auth";
 
 export const prerender = false;
+
+const sql = getSql();
+const errors: Record<string, string> = {};
+
+// Re-issue this browser's session after anything that signs out all sessions
+async function keepSignedIn() {
+  Astro.cookies.set(SESSION_COOKIE, await createSession(), { httpOnly: true, secure: import.meta.env.PROD, sameSite: "lax", path: "/dashboard", maxAge: SESSION_MAX_AGE });
+}
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = form.get("action");
+  const field = (k: string) => String(form.get(k) ?? "").trim();
+
+  if (action === "profile") {
+    const name = field("display_name").replace(/\s+/g, " ");
+    const signature = String(form.get("email_signature") ?? "").replace(/\r\n/g, "\n").trim();
+    if (name.length > 60) errors.profile = "Name is too long (60 characters max).";
+    else if (signature.length > 1000) errors.profile = "Signature is too long (1,000 characters max).";
+    else {
+      name ? await setSetting("display_name", name) : await deleteSetting("display_name");
+      signature ? await setSetting("email_signature", signature) : await deleteSetting("email_signature");
+      return Astro.redirect("/dashboard/settings?saved=profile#profile", 303);
+    }
+  } else if (action === "password") {
+    const current = String(form.get("current") ?? "");
+    const next = String(form.get("new") ?? "");
+    if (!(await checkPassword(current))) {
+      await new Promise((r) => setTimeout(r, 800)); // slow down guessing
+      errors.password = "Your current password is incorrect.";
+    } else if (next.length < 12) errors.password = "Use at least 12 characters for the new password.";
+    else if (next !== String(form.get("confirm") ?? "")) errors.password = "The new passwords don't match.";
+    else if (next === current) errors.password = "The new password is the same as the current one.";
+    else {
+      await setPassword(next); // signs out every other session
+      await keepSignedIn();
+      return Astro.redirect("/dashboard/settings?saved=password#security", 303);
+    }
+  } else if (action === "signout_all") {
+    await bumpSessionEpoch();
+    await keepSignedIn();
+    return Astro.redirect("/dashboard/settings?saved=signedout#security", 303);
+  }
+  Astro.response.status = 400;
+}
+
+const saved = {
+  profile: "Profile and signature saved.",
+  password: "Password changed. Every other device has been signed out.",
+  signedout: "Signed out everywhere else. This browser stays signed in.",
+}[Astro.url.searchParams.get("saved") ?? ""];
+
+// ---- Status of each connection ----
+type Stats = {
+  leads: number;
+  last_email: Date | null;
+  last_reply: Date | null;
+  last_website_lead: Date | null;
+  last_call: Date | null;
+  last_summary: Date | null;
+  last_zoom_event: Date | null;
+  zoom_errors: number;
+  zoom_last_error: string | null;
+};
+let stats: Stats | undefined;
+if (sql) {
+  stats = ((await sql`
+    SELECT
+      (SELECT count(*)::int FROM leads) AS leads,
+      (SELECT max(created_at) FROM lead_activity WHERE kind = 'email') AS last_email,
+      (SELECT max(created_at) FROM lead_activity WHERE kind = 'reply') AS last_reply,
+      (SELECT max(created_at) FROM leads WHERE source = 'website') AS last_website_lead,
+      (SELECT max(updated_at) FROM calls WHERE zoom_logged) AS last_call,
+      (SELECT max(updated_at) FROM calls WHERE summary IS NOT NULL) AS last_summary,
+      (SELECT max(received_at) FROM zoom_events) AS last_zoom_event,
+      (SELECT count(*)::int FROM zoom_events WHERE error IS NOT NULL AND received_at > now() - interval '24 hours') AS zoom_errors,
+      (SELECT error FROM zoom_events WHERE error IS NOT NULL AND received_at > now() - interval '24 hours' ORDER BY id DESC LIMIT 1) AS zoom_last_error
+  `) as Stats[])[0];
+}
+const settings = sql ? await getSettings(["display_name", "email_signature", "sheet_last_sync"]) : {};
+const lastSync = settings.sheet_last_sync as { at: string; received: number; inserted: number; updated: number; statusChanged: number } | undefined;
+const pwSource = await passwordSource();
+
+const since = (d: Date | string | null | undefined, none = "nothing yet") => (d ? ago(d) : none);
+const zoomReady = zoomApiConfigured() && Boolean(ZOOM_WEBHOOK_SECRET);
+const syncStale = lastSync && Date.now() - new Date(lastSync.at).getTime() > 60 * 60 * 1000;
+
+type State = "active" | "off" | "attention";
+const connections: { name: string; state: State; detail: string; hint?: string }[] = [
+  { name: "Database", state: sql ? "active" : "off", detail: sql ? `${stats?.leads ?? 0} leads stored` : "DATABASE_URL is not set" },
+  {
+    name: "Email sending",
+    state: RESEND_API_KEY ? "active" : "off",
+    detail: RESEND_API_KEY ? `From ${OUTREACH_FROM} · last sent ${since(stats?.last_email)}` : "RESEND_API_KEY is not set",
+  },
+  {
+    name: "New-lead alerts",
+    state: RESEND_API_KEY && ALERT_EMAIL_TO ? "active" : "off",
+    detail: ALERT_EMAIL_TO ? `Sent to ${ALERT_EMAIL_TO} · last website enquiry ${since(stats?.last_website_lead)}` : "ALERT_EMAIL_TO is not set",
+  },
+  {
+    name: "Reply tracking",
+    state: REPLY_TO_ADDRESS && RESEND_WEBHOOK_SECRET ? "active" : "off",
+    detail: REPLY_TO_ADDRESS
+      ? `Replies to ${REPLY_TO_ADDRESS}, forwarded to ${INBOX_FORWARD_TO} · last reply ${since(stats?.last_reply)}`
+      : "REPLY_TO_ADDRESS / RESEND_WEBHOOK_SECRET are not set",
+  },
+  {
+    name: "Zoom call logging",
+    state: !zoomReady ? "off" : stats?.zoom_errors ? "attention" : "active",
+    detail: zoomReady ? `Last call logged ${since(stats?.last_call)} · last event from Zoom ${since(stats?.last_zoom_event)}` : "ZOOM_* settings are not set",
+    hint: stats?.zoom_errors ? `${stats.zoom_errors} failed event(s) in the last 24h. Latest: ${stats.zoom_last_error}` : undefined,
+  },
+  {
+    name: "AI call summaries",
+    state: zoomReady ? "active" : "off",
+    detail: zoomReady ? `Last summary saved ${since(stats?.last_summary)}` : "Needs Zoom call logging",
+    hint: zoomReady ? "Requires \"Automatic call summary\" to be on in Zoom (Zoom Phone settings)." : undefined,
+  },
+  {
+    name: "Google Sheet sync",
+    state: !SHEET_SYNC_SECRET ? "off" : !lastSync || syncStale ? "attention" : "active",
+    detail: !SHEET_SYNC_SECRET
+      ? "SHEET_SYNC_SECRET is not set"
+      : lastSync
+        ? `Last sync ${ago(lastSync.at)}: ${lastSync.received} rows, ${lastSync.inserted} new, ${lastSync.updated} updated, ${lastSync.statusChanged} status changes`
+        : "No sync recorded yet",
+    hint: SHEET_SYNC_SECRET && (!lastSync || syncStale) ? "The sheet normally syncs every 5 minutes. Check the Apps Script trigger (Dashboard → Set up automatic sync)." : undefined,
+  },
+];
+const badge: Record<State, { label: string; cls: string; dot: string }> = {
+  active: { label: "Active", cls: "bg-emerald-100 text-emerald-800", dot: "bg-emerald-500" },
+  attention: { label: "Needs attention", cls: "bg-amber-100 text-amber-800", dot: "bg-amber-500" },
+  off: { label: "Not set up", cls: "bg-ink/5 text-slate", dot: "bg-slate/40" },
+};
+
+const origin = Astro.url.origin;
+const endpoints = [
+  { label: "Zoom webhook (event subscription)", url: `${origin}/api/zoom/webhook` },
+  { label: "Resend webhook (email.received)", url: `${origin}/api/email/inbound` },
+  { label: "Google Sheet script SITE_URL", url: origin },
+  { label: "Website contact form", url: `${origin}/api/contact` },
+];
+const field = "w-full rounded-[10px] border border-line bg-paper px-3 py-2 outline-none transition-colors focus:border-signal focus:bg-surface";
+const card = "rounded-[14px] border border-line bg-surface p-5";
 ---
 <DashboardLayout title="Settings">
-  <EmptyState text="Account and integration settings will live here." />
+  <div class="max-w-4xl space-y-5">
+    {saved && <p role="status" class="rounded-[10px] border border-signal/20 bg-signal/5 px-4 py-2.5 text-signal">{saved}</p>}
+
+    <!-- Connections -->
+    <section class={card}>
+      <h2 class="font-display text-[18px] font-semibold">Connections</h2>
+      <p class="mt-0.5 text-slate">What's connected, and when each one last did something.</p>
+      <ul class="mt-4 divide-y divide-line">
+        {connections.map((c) => (
+          <li class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
+            <div class="flex min-w-0 items-start gap-3">
+              <span class={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${badge[c.state].dot}`}></span>
+              <div class="min-w-0">
+                <p class="font-medium">{c.name}</p>
+                <p class="break-words text-[13px] text-slate">{c.detail}</p>
+                {c.hint && <p class="mt-0.5 break-words text-[12px] text-amber-800">{c.hint}</p>}
+              </div>
+            </div>
+            <span class={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge[c.state].cls}`}>{badge[c.state].label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <!-- Profile & signature -->
+    <section id="profile" class={`${card} scroll-mt-20`}>
+      <h2 class="font-display text-[18px] font-semibold">Profile & email signature</h2>
+      <form method="POST" class="mt-4 space-y-4">
+        <input type="hidden" name="action" value="profile" />
+        <label class="block max-w-sm">
+          <span class="font-medium">Your name</span>
+          <span class="text-slate"> · shown in the top bar</span>
+          <input name="display_name" value={settings.display_name ?? ""} maxlength="60" placeholder="e.g. Minhal Jafar" class={`mt-1.5 ${field}`} />
+        </label>
+        <label class="block">
+          <span class="font-medium">Email signature</span>
+          <span class="text-slate"> · used for {"{signature}"} in templates and new emails. Leave blank for the default.</span>
+          <textarea name="email_signature" rows="5" maxlength="1000" placeholder={defaultSignature(settings.display_name)} class={`mt-1.5 resize-y font-[inherit] leading-relaxed ${field}`}>{settings.email_signature ?? ""}</textarea>
+        </label>
+        {errors.profile && <p role="alert" class="text-[13px] text-red-700">{errors.profile}</p>}
+        <button type="submit" class="rounded-full bg-signal px-5 py-2 font-medium text-white transition-colors hover:bg-signal-hover">Save</button>
+      </form>
+    </section>
+
+    <!-- Security -->
+    <section id="security" class={`${card} scroll-mt-20`}>
+      <h2 class="font-display text-[18px] font-semibold">Security</h2>
+      <p class="mt-0.5 text-slate">
+        {pwSource === "dashboard" ? "Your password was set here in the dashboard." : "You're using the password set in Vercel (ADMIN_PASSWORD). Changing it here replaces it."}
+      </p>
+      <form method="POST" class="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
+        <input type="hidden" name="action" value="password" />
+        <label class="block sm:col-span-2 sm:max-w-[calc(50%-0.375rem)]">
+          <span class="font-medium">Current password</span>
+          <input name="current" type="password" required autocomplete="current-password" class={`mt-1.5 ${field}`} />
+        </label>
+        <label class="block">
+          <span class="font-medium">New password</span>
+          <input name="new" type="password" required minlength="12" autocomplete="new-password" class={`mt-1.5 ${field}`} />
+        </label>
+        <label class="block">
+          <span class="font-medium">Confirm new password</span>
+          <input name="confirm" type="password" required minlength="12" autocomplete="new-password" class={`mt-1.5 ${field}`} />
+        </label>
+        {errors.password && <p role="alert" class="text-[13px] text-red-700 sm:col-span-2">{errors.password}</p>}
+        <div class="sm:col-span-2">
+          <button type="submit" class="rounded-full bg-signal px-5 py-2 font-medium text-white transition-colors hover:bg-signal-hover">Change password</button>
+          <p class="mt-1.5 text-[12px] text-slate">At least 12 characters. Changing it signs out every other device.</p>
+        </div>
+      </form>
+
+      <form method="POST" data-confirm="Sign out of the dashboard on every other device and browser?" class="mt-6 border-t border-line pt-4">
+        <input type="hidden" name="action" value="signout_all" />
+        <p class="font-medium">Sign out everywhere</p>
+        <p class="text-[13px] text-slate">Ends every session except this one, e.g. if a device was lost.</p>
+        <button type="submit" class="mt-2 rounded-full border border-line px-4 py-1.5 font-medium transition-colors hover:border-red-300 hover:text-red-700">Sign out other devices</button>
+      </form>
+    </section>
+
+    <!-- Data -->
+    <section class={card}>
+      <h2 class="font-display text-[18px] font-semibold">Data</h2>
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="font-medium">Export leads</p>
+          <p class="text-[13px] text-slate">All {stats?.leads ?? 0} leads as a CSV file, for backups or spreadsheets.</p>
+        </div>
+        <a href="/dashboard/api/leads-export" class="rounded-full border border-line px-4 py-2 font-medium transition-colors hover:border-signal hover:text-signal">Download CSV</a>
+      </div>
+
+      <div class="mt-5 border-t border-line pt-4">
+        <p class="font-medium">Connection addresses</p>
+        <p class="text-[13px] text-slate">For reference when configuring Zoom, Resend or the Google Sheet script. Update these if the domain changes.</p>
+        <ul class="mt-2 space-y-1.5">
+          {endpoints.map((e) => (
+            <li class="flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-paper px-3 py-2">
+              <span class="text-[13px] text-slate">{e.label}</span>
+              <code class="break-all text-[13px] text-ink">{e.url}</code>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  </div>
 </DashboardLayout>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>("form[data-confirm]").forEach((form) =>
+    form.addEventListener("submit", (e) => {
+      if (!confirm(form.dataset.confirm)) e.preventDefault();
+    })
+  );
+</script>

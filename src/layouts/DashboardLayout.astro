@@ -1,17 +1,28 @@
 ---
 import "../styles/global.css";
 import { getSql } from "../lib/db";
+import { initials } from "../lib/settings";
+import { OUTREACH_FROM } from "astro:env/server";
 
 const { title = "Dashboard" } = Astro.props;
 
-// Leads waiting on a response from you, shown as a badge on the Leads nav item
+// Leads waiting on a response from you (badge on the Leads nav item), plus your name from Settings
 let repliedCount = 0;
+let displayName = "Studio Admin";
 try {
   const sql = getSql();
-  if (sql) repliedCount = ((await sql`SELECT count(*)::int AS n FROM leads WHERE status = 'replied'`) as { n: number }[])[0].n;
+  if (sql) {
+    const [row] = (await sql`
+      SELECT (SELECT count(*)::int FROM leads WHERE status = 'replied') AS replied,
+             (SELECT value #>> '{}' FROM settings WHERE key = 'display_name') AS name
+    `) as { replied: number; name: string | null }[];
+    repliedCount = row.replied;
+    displayName = row.name || displayName;
+  }
 } catch (err) {
-  console.error("[dashboard] replied count failed", err);
+  console.error("[dashboard] header data failed", err);
 }
+const senderAddress = OUTREACH_FROM?.match(/<([^>]+)>/)?.[1] ?? OUTREACH_FROM ?? "";
 
 // Inline SVG paths (24×24, stroke-based) shared by nav items
 const icons = {
@@ -101,10 +112,10 @@ const path = Astro.url.pathname.replace(/\/$/, "");
           </div>
           <div class="flex items-center gap-2.5">
             <span class="hidden text-right leading-tight sm:block">
-              <span class="block font-medium">Studio Admin</span>
-              <span class="block text-[12px] text-slate">hello@mhalstudio.com</span>
+              <span class="block font-medium">{displayName}</span>
+              <span class="block text-[12px] text-slate">{senderAddress}</span>
             </span>
-            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-ink font-display text-[13px] font-semibold text-paper">SA</span>
+            <a href="/dashboard/settings" title="Settings" class="flex h-9 w-9 items-center justify-center rounded-full bg-ink font-display text-[13px] font-semibold text-paper">{initials(displayName)}</a>
           </div>
         </header>
 
