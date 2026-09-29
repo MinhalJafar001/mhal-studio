@@ -26,6 +26,7 @@ if (sql) {
           count(*) FILTER (WHERE status = 'new')::int AS new,
           count(*) FILTER (WHERE status = 'contacted')::int AS contacted,
           count(*) FILTER (WHERE status = 'replied')::int AS replied,
+          count(*) FILTER (WHERE status = 'interested')::int AS interested,
           count(*) FILTER (WHERE status = 'won')::int AS won,
           count(*) FILTER (WHERE status = 'lost')::int AS lost
         FROM leads`,
@@ -80,7 +81,7 @@ const pct = (n: number) => (stats?.total ? Math.round((n / stats.total) * 100) :
             <div class={s.bar} style={`width: ${pct(stats![s.key])}%`}></div>
           ))}
         </div>
-        <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {STATUSES.map((s) => (
             <a href={`/dashboard/leads?status=${s.key}`} class="rounded-[10px] px-3 py-2 transition-colors hover:bg-paper">
               <span class={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${s.badge}`}>{s.label}</span>

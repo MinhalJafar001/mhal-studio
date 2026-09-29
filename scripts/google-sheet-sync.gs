@@ -9,6 +9,10 @@
  *
  * Columns are matched by header name, so their order doesn't matter. A "Dashboard ID"
  * column is added to give each row a permanent ID — don't edit or delete it.
+ *
+ * Status columns (optional): Interested = Yes → Interested, Interested = No → Lost,
+ * Called Yet? = Yes or DM = Yes → Contacted. The sheet only moves a lead forward in the
+ * dashboard's pipeline; it never undoes progress made in the dashboard.
  */
 
 const SHEET_INDEX = 0; // first tab
@@ -20,6 +24,12 @@ const FIELDS = {
   phone: "Phone",
   email: "Email",
   website: "Website",
+};
+// Optional status columns: mapped to dashboard statuses (only ever moving a lead forward)
+const STATUS_FIELDS = {
+  dm: "DM",
+  called_yet: "Called Yet?",
+  interested: "Interested",
 };
 
 function onOpen() {
@@ -66,6 +76,11 @@ function syncLeads() {
       if (i === -1) return { ok: false, message: `Column "${header}" not found in row 1.` };
       col[key] = i;
     }
+    const statusCol = {};
+    for (const [key, header] of Object.entries(STATUS_FIELDS)) {
+      const i = headers.indexOf(header.toLowerCase());
+      if (i !== -1) statusCol[key] = i;
+    }
 
     // Find or create the ID column
     let idCol = headers.indexOf(ID_HEADER.toLowerCase());
@@ -83,6 +98,7 @@ function syncLeads() {
     values.forEach((row, r) => {
       const lead = {};
       for (const key of Object.keys(FIELDS)) lead[key] = (row[col[key]] || "").trim();
+      for (const key of Object.keys(statusCol)) lead[key] = (row[statusCol[key]] || "").trim();
       if (!lead.business_name && !lead.contact_person && !lead.email) return; // blank row
       if (!ids[r][0]) {
         ids[r][0] = Utilities.getUuid();
@@ -109,7 +125,7 @@ function syncLeads() {
       return { ok: false, message };
     }
 
-    const message = `Synced ${leads.length} leads: ${body.inserted} new, ${body.updated} updated, ${body.skipped} skipped.`;
+    const message = `Synced ${leads.length} leads: ${body.inserted} new, ${body.updated} updated, ${body.statusChanged || 0} status changes, ${body.skipped} skipped.`;
     console.log(message);
     return { ok: true, message };
   } finally {

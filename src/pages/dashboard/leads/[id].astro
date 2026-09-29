@@ -36,7 +36,7 @@ type Activity = {
     from?: string;
     to?: string;
     subject?: string;
-    auto?: boolean | "email" | "reply" | "call";
+    auto?: boolean | "email" | "reply" | "call" | "sheet";
     full_text?: string | null;
     // calls
     direction?: string | null;
@@ -340,7 +340,7 @@ const details = [
                     {a.kind === "note" ? "Note" : a.kind === "status" ? `Status changed to ${statusLabel(a.meta?.to ?? "")}` : a.kind === "email" ? "Email sent" : a.kind === "reply" ? "Reply received" : "Call"}
                     {a.kind === "status" && a.meta?.from && (
                       <span class="font-normal text-slate">
-                        {" "}from {statusLabel(a.meta.from)}{a.meta.auto === "reply" ? " (reply received)" : a.meta.auto === "call" ? " (after call)" : a.meta.auto ? " (after email)" : ""}
+                        {" "}from {statusLabel(a.meta.from)}{a.meta.auto === "reply" ? " (reply received)" : a.meta.auto === "call" ? " (after call)" : a.meta.auto === "sheet" ? " (from sheet)" : a.meta.auto ? " (after email)" : ""}
                       </span>
                     )}
                     {(a.kind === "email" || a.kind === "reply") && a.meta?.subject && <span class="font-normal text-slate">: {a.meta.subject}</span>}

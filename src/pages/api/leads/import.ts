@@ -11,9 +11,20 @@ export const prerender = false;
 const MAX_ROWS = 2000;
 const LIMITS = { business_name: 160, name: 120, position: 120, email: 254, phone: 40, website: 300 } as const;
 
-type Row = Record<keyof typeof LIMITS | "external_id", string | null>;
+type Row = Record<keyof typeof LIMITS | "external_id" | "sheet_status", string | null>;
 
 const json = (status: number, body: object) => Response.json(body, { status });
+
+// Sheet status columns → dashboard status. Interested decides first; otherwise a call or DM means Contacted.
+const YES = /^(y|yes|yeah|yep|true|done|x|✓|✔|✅|1|called|sent|interested)$/i;
+const NO = /^(n|no|nope|false|0|not interested|no interest)$/i;
+function sheetStatus(raw: Record<string, unknown>): string | null {
+  const v = (k: string) => String(raw[k] ?? "").trim();
+  if (YES.test(v("interested"))) return "interested";
+  if (NO.test(v("interested"))) return "lost";
+  if (YES.test(v("called_yet")) || YES.test(v("dm"))) return "contacted";
+  return null;
+}
 
 function clean(raw: Record<string, unknown>): Row | null {
   const text = (v: unknown, max: number) => {
@@ -29,6 +40,7 @@ function clean(raw: Record<string, unknown>): Row | null {
     email: text(raw.email, LIMITS.email)?.toLowerCase() ?? null,
     phone: text(raw.phone, LIMITS.phone),
     website: text(raw.website, LIMITS.website),
+    sheet_status: sheetStatus(raw),
   };
   // Needs an ID and at least something to identify the lead by
   if (!external_id || !(row.business_name || row.name || row.email)) return null;
@@ -63,22 +75,45 @@ export const POST: APIRoute = async ({ request }) => {
   if (!sql) return json(503, { ok: false, error: "Database is not configured." });
 
   try {
+    const payload = JSON.stringify([...rows.values()]);
     const result = await sql.query(
-      `INSERT INTO leads (external_id, source, business_name, name, position, email, phone, website)
-       SELECT external_id, 'manual', business_name, name, position, email, phone, website
+      `INSERT INTO leads (external_id, source, business_name, name, position, email, phone, website, status)
+       SELECT external_id, 'manual', business_name, name, position, email, phone, website, COALESCE(sheet_status, 'new')
        FROM jsonb_to_recordset($1::jsonb)
-         AS x(external_id text, business_name text, name text, position text, email text, phone text, website text)
+         AS x(external_id text, business_name text, name text, position text, email text, phone text, website text, sheet_status text)
        ON CONFLICT (external_id) DO UPDATE SET
          business_name = EXCLUDED.business_name, name = EXCLUDED.name, position = EXCLUDED.position,
          email = EXCLUDED.email, phone = EXCLUDED.phone, website = EXCLUDED.website, updated_at = now()
        WHERE (leads.business_name, leads.name, leads.position, leads.email, leads.phone, leads.website)
          IS DISTINCT FROM (EXCLUDED.business_name, EXCLUDED.name, EXCLUDED.position, EXCLUDED.email, EXCLUDED.phone, EXCLUDED.website)
        RETURNING (xmax = 0) AS inserted`,
-      [JSON.stringify([...rows.values()])]
+      [payload]
     ) as { inserted: boolean }[];
 
+    // Sheet statuses only move existing leads forward in the pipeline; dashboard progress is never undone
+    const moved = await sql.query(
+      `WITH incoming AS (
+         SELECT external_id, sheet_status FROM jsonb_to_recordset($1::jsonb) AS x(external_id text, sheet_status text)
+         WHERE sheet_status IS NOT NULL
+       ),
+       ahead AS (
+         SELECT l.id, l.status AS old_status, i.sheet_status
+         FROM leads l JOIN incoming i ON i.external_id = l.external_id
+         WHERE array_position($2::text[], i.sheet_status) > array_position($2::text[], l.status)
+       ),
+       upd AS (
+         UPDATE leads SET status = ahead.sheet_status, updated_at = now()
+         FROM ahead WHERE leads.id = ahead.id
+         RETURNING leads.id, ahead.old_status, ahead.sheet_status
+       )
+       INSERT INTO lead_activity (lead_id, kind, meta)
+       SELECT id, 'status', jsonb_build_object('from', old_status, 'to', sheet_status, 'auto', 'sheet') FROM upd
+       RETURNING lead_id`,
+      [payload, ["new", "contacted", "replied", "interested", "lost", "won"]]
+    );
+
     const inserted = result.filter((r) => r.inserted).length;
-    return json(200, { ok: true, received: body.leads.length, inserted, updated: result.length - inserted, skipped });
+    return json(200, { ok: true, received: body.leads.length, inserted, updated: result.length - inserted, statusChanged: moved.length, skipped });
   } catch (err) {
     console.error("[leads/import] upsert failed", err);
     return json(500, { ok: false, error: "Failed to save leads." });

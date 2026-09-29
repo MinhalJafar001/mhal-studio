@@ -82,6 +82,10 @@ CREATE INDEX IF NOT EXISTS calls_lead_idx ON calls (lead_id, started_at DESC);
 -- Match incoming numbers to leads on their last 10 digits (formatting-insensitive)
 CREATE INDEX IF NOT EXISTS leads_phone_digits_idx ON leads ((right(regexp_replace(coalesce(phone, ''), '\D', '', 'g'), 10)));
 
+-- v10: 'interested' status (set from the Google Sheet's Interested column, or by hand)
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
+ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN ('new', 'contacted', 'replied', 'interested', 'won', 'lost'));
+
 -- v8: calls placed from the dashboard via the Zoom desktop app (zoomphonecall://) are recorded as pending
 -- (call_id = local_ref = 'dash-…') and merged with Zoom's server-side call record when its webhook arrives.
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS local_ref text;
