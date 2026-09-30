@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getSql } from "../../lib/db";
 import { sendLeadAlert } from "../../lib/email";
+import { EMAIL } from "../../lib/site";
 import { HONEYPOT_FIELD, SERVICE_OPTIONS } from "../../lib/contact";
 
 export const prerender = false;
@@ -12,7 +13,7 @@ const wantsJson = (request: Request) => request.headers.get("accept")?.includes(
 
 function fail(request: Request, status: number, error: string) {
   if (wantsJson(request)) return Response.json({ ok: false, error }, { status });
-  return new Response(`${error}\n\nPlease go back and try again, or email hello@mhalstudio.com.`, {
+  return new Response(`${error}\n\nPlease go back and try again, or email ${EMAIL}.`, {
     status,
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });

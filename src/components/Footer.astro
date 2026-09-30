@@ -1,4 +1,5 @@
 ---
+import { EMAIL } from "../lib/site";
 const year = new Date().getFullYear();
 ---
 <footer class="mt-24 bg-ink text-paper">
@@ -29,7 +30,7 @@ const year = new Date().getFullYear();
       <div>
         <p class="text-[13px] font-medium uppercase tracking-wider text-white/40">Get in touch</p>
         <ul class="mt-4 space-y-2.5 text-[15px] text-white/70">
-          <li><a href="mailto:hello@mhalstudio.com" class="hover:text-white">hello@mhalstudio.com</a></li>
+          <li><a href={`mailto:${EMAIL}`} class="hover:text-white">{EMAIL}</a></li>
         </ul>
       </div>
     </div>

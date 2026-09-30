@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { EMAIL } from "../lib/site";
 
 const {
   title = "Mhal Studio — Design & development for brands that mean business",
@@ -17,11 +18,11 @@ const schema = {
   name: "Mhal Studio",
   description: description,
   url: "https://mhalstudio.com",
-  email: "hello@mhalstudio.com",
+  email: EMAIL,
   telephone: "+15208124064",
   priceRange: "$$",
   areaServed: "Worldwide",
-  serviceType: ["Website Design", "Website Development", "Brand Identity", "Landing Pages"],
+  serviceType: ["Website Design", "Website Development", "Social Media Assets", "Logo & Brand Identity", "Chat & Call Bots"],
 };
 ---
 <!doctype html>
