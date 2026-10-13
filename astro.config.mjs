@@ -5,8 +5,12 @@ import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import vercel from '@astrojs/vercel';
 
+// The site's public address: Vercel's production domain (mhal-studio.vercel.app now, mhalstudio.com automatically
+// once that domain is added in Vercel). Used for canonical URLs, the sitemap and social preview links.
+const SITE = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://mhalstudio.com';
+
 export default defineConfig({
-  site: 'https://mhalstudio.com',
+  site: SITE,
 
   // Static by default: every public page is prerendered at build time.
   // Routes that need a server (the /dashboard area) opt out with `export const prerender = false`.

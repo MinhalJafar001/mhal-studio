@@ -1,70 +1,124 @@
 ---
+import sharp from "sharp";
+import { join } from "node:path";
 import { BOOKING_URL } from "../../lib/site";
 import Layout from "../../layouts/Layout.astro";
 import { getCollection, render } from "astro:content";
 
 export async function getStaticPaths() {
-  const projects = await getCollection("work");
-  return projects.map((project) => ({
+  const projects = (await getCollection("work")).sort((a, b) => a.data.order - b.data.order);
+  return projects.map((project, i) => ({
     params: { slug: project.id },
-    props: { project },
+    props: { project, next: projects[(i + 1) % projects.length] },
   }));
 }
 
-const { project } = Astro.props;
+const { project, next } = Astro.props;
 const { Content } = await render(project);
 const d = project.data;
-// cover: a site path ("/work/….webp") or, for older entries, an Unsplash photo ID
-const cover = d.cover.startsWith("/") ? d.cover : `https://images.unsplash.com/photo-${d.cover}?w=1400&h=760&fit=crop&auto=format&q=80`;
+
+// Read each image's size at build time: wide images span the full gallery width, tall/square ones pair up
+const size = async (src: string) => {
+  try {
+    const { width = 1600, height = 1000 } = await sharp(join(process.cwd(), "public", src)).metadata();
+    return { width, height };
+  } catch {
+    return { width: 1600, height: 1000 };
+  }
+};
+const cover = { src: d.cover, ...(await size(d.cover)) };
+const gallery = await Promise.all(d.gallery.map(async (g) => ({ ...g, ...(await size(g.src)) })));
+const isWide = (img: { width: number; height: number }) => img.width / img.height >= 1.25;
+
+const facts = [
+  ["Client", d.client],
+  ["Platform", d.platform],
+  ["Services", d.services.join(", ")],
+].filter(([, v]) => v) as [string, string][];
 ---
-<Layout title={`${d.client} — Mhal Studio`} description={d.summary}>
-  <article class="mx-auto max-w-4xl px-6 py-16 md:py-24">
+<Layout title={`${d.client} — Mhal Studio`} description={d.summary} image={d.cover}>
+  <article class="mx-auto max-w-5xl px-6 py-16 md:py-24">
     <!-- Header -->
     <a href="/work" class="text-[15px] text-slate transition-colors hover:text-ink">← Back to work</a>
     <p class="mt-8 text-[14px] font-medium text-signal">{d.category}</p>
-    <h1 class="mt-3 font-display text-[clamp(2.2rem,5vw,3.6rem)] font-semibold leading-tight text-ink">{d.title}</h1>
-    <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px] text-slate">
-      <span><span class="text-ink/50">Client:</span> {d.client}</span>
-      <span><span class="text-ink/50">Year:</span> {d.year}</span>
-      <span><span class="text-ink/50">Services:</span> {d.services.join(", ")}</span>
-    </div>
+    <h1 class="mt-3 max-w-4xl font-display text-[clamp(2.2rem,5vw,3.6rem)] font-semibold leading-tight text-ink">{d.title}</h1>
+    <dl class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px] text-slate">
+      {facts.map(([k, v]) => (
+        <div class="flex gap-1.5"><dt class="text-ink/50">{k}:</dt><dd>{v}</dd></div>
+      ))}
+    </dl>
 
-    <!-- Cover -->
-    <figure class="mt-10 overflow-hidden rounded-[24px] border border-line">
-      <img src={cover} alt={d.client} class="aspect-[16/9] w-full object-cover" />
+    <!-- Cover (shown whole, never cropped), or the project film with the cover as its poster -->
+    <figure class="mt-10 overflow-hidden rounded-[24px] border border-line bg-surface">
+      {d.video ? (
+        <video src={d.video} poster={cover.src} width={cover.width} height={cover.height} controls playsinline preload="none" class="h-auto w-full" aria-label={`${d.client}: ${d.summary}`} />
+      ) : (
+        <img src={cover.src} alt={`${d.client}: ${d.summary}`} width={cover.width} height={cover.height} class="h-auto w-full" />
+      )}
     </figure>
 
-    <!-- Results metrics -->
-    <div class="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-[22px] border border-line bg-line sm:grid-cols-3">
-      {d.results.map((r) => (
-        <div class="bg-paper px-6 py-8 text-center">
-          <div class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold text-signal">{r.metric}</div>
-          <p class="mt-1 text-[14px] text-slate">{r.label}</p>
-        </div>
-      ))}
-    </div>
+    <!-- Results: only real, verifiable numbers -->
+    {d.results.length > 0 && (
+      <div class={`mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-[22px] border border-line bg-line ${["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3"][Math.min(d.results.length, 3)]}`}>
+        {d.results.map((r) => (
+          <div class="bg-paper px-6 py-8 text-center">
+            <div class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold text-signal">{r.metric}</div>
+            <p class="mt-1 text-[14px] text-slate">{r.label}</p>
+          </div>
+        ))}
+      </div>
+    )}
 
-    <!-- Challenge & Process -->
+    <!-- Brief & approach -->
     <div class="mt-14 grid gap-10 md:grid-cols-2">
       <div>
-        <h2 class="font-display text-[22px] font-semibold text-ink">The challenge</h2>
+        <h2 class="font-display text-[22px] font-semibold text-ink">The brief</h2>
         <p class="mt-3 text-[16px] leading-relaxed text-slate">{d.challenge}</p>
       </div>
       <div>
-        <h2 class="font-display text-[22px] font-semibold text-ink">The process</h2>
+        <h2 class="font-display text-[22px] font-semibold text-ink">What we did</h2>
         <p class="mt-3 text-[16px] leading-relaxed text-slate">{d.process}</p>
       </div>
     </div>
 
-    <!-- Long-form body from Markdown -->
-    <div class="prose mt-14 max-w-none border-t border-line pt-10 text-[17px] leading-relaxed text-slate [&>p]:mb-5 [&>p]:max-w-2xl">
-      <h2 class="mb-4 font-display text-[22px] font-semibold text-ink">The results</h2>
-      <Content />
-    </div>
+    {d.deliverables.length > 0 && (
+      <div class="mt-10">
+        <h2 class="text-[14px] font-medium text-ink/60">Deliverables</h2>
+        <ul class="mt-3 flex flex-wrap gap-2">
+          {d.deliverables.map((x) => <li class="rounded-full border border-line bg-surface px-4 py-1.5 text-[14px] text-ink">{x}</li>)}
+        </ul>
+      </div>
+    )}
+
+    <!-- Gallery -->
+    {gallery.length > 0 && (
+      <section class="mt-14 grid items-start gap-5 md:grid-cols-2" aria-label="Project images">
+        {gallery.map((img) => (
+          <figure class={`overflow-hidden rounded-[20px] border border-line bg-surface ${isWide(img) ? "md:col-span-2" : ""}`}>
+            <img src={img.src} alt={img.alt} width={img.width} height={img.height} loading="lazy" class="h-auto w-full" />
+          </figure>
+        ))}
+      </section>
+    )}
+
+    <!-- Optional long-form notes from the Markdown body -->
+    <div class="mt-14 max-w-2xl text-[17px] leading-relaxed text-slate empty:hidden [&>p]:mb-5"><Content /></div>
+
+    <!-- Next project -->
+    {next && next.id !== project.id && (
+      <a href={`/work/${next.id}`} class="group mt-16 flex items-center justify-between gap-6 border-t border-line pt-8">
+        <div>
+          <p class="text-[14px] text-slate">Next project</p>
+          <p class="mt-1 font-display text-[clamp(1.4rem,3vw,2rem)] font-semibold text-ink transition-colors group-hover:text-signal">{next.data.client}</p>
+          <p class="text-[15px] text-slate">{next.data.category}</p>
+        </div>
+        <span class="text-[28px] text-signal transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">→</span>
+      </a>
+    )}
 
     <!-- CTA -->
     <div class="mt-16 rounded-[24px] bg-signal px-8 py-12 text-center text-white">
-      <h2 class="font-display text-[clamp(1.6rem,3.5vw,2.4rem)] font-semibold">Want results like these?</h2>
+      <h2 class="font-display text-[clamp(1.6rem,3.5vw,2.4rem)] font-semibold">Want work like this for your brand?</h2>
       <p class="mx-auto mt-3 max-w-md text-[16px] text-white/75">Book a free consultation and let's talk about your project.</p>
       <a href={BOOKING_URL} target="_blank" rel="noopener" class="mt-7 inline-block rounded-full bg-white px-7 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-white/90">Book a call</a>
     </div>

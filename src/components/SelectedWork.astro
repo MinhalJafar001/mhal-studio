@@ -1,11 +1,9 @@
 ---
-const projects = [
-  { name: "Profound Publishers", cat: "Website Design & Development", result: "A faster, cleaner site that reflects their authority.", img: "profound-publishers.webp" },
-  { name: "Curated Kitchens", cat: "Brand Identity Development", result: "A polished identity for a premium remodeler.", img: "curated-kitchens.webp" },
-  { name: "Dreamerce", cat: "DTC Static Ad Creatives", result: "Scroll-stopping ad creative built to convert.", img: "dreamerce.webp" },
-  { name: "Kids Studio", cat: "Website Design", result: "A playful, high-converting site for a kids' brand.", img: "kids-studio.webp" },
-];
-const img = (file) => `/work/${file}`;
+import { getCollection } from "astro:content";
+
+// Case studies marked `featured: true`, in their `order`
+const projects = (await getCollection("work", (p) => p.data.featured)).sort((a, b) => a.data.order - b.data.order);
+const POSITION = { center: "object-center", left: "object-left", top: "object-top" };
 ---
 <section id="work" class="py-20 md:py-28">
   <div class="mx-auto mb-12 max-w-6xl px-6">
@@ -18,16 +16,16 @@ const img = (file) => `/work/${file}`;
   <!-- Horizontal scroll track -->
   <div class="work-scroll flex gap-6 overflow-x-auto px-6 pb-6 [scroll-snap-type:x_mandatory] no-scrollbar md:px-[max(1.5rem,calc((100vw-72rem)/2))]">
     {projects.map((p) => (
-      <div class="group relative block w-[85vw] shrink-0 overflow-hidden rounded-[24px] border border-line bg-surface [scroll-snap-align:start] md:w-[560px]">
-        <div class="h-[62vw] max-h-[440px] overflow-hidden md:h-[380px]">
-          <img src={img(p.img)} alt={p.name} loading="lazy" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+      <a href={`/work/${p.id}`} draggable="false" class="group relative block w-[85vw] shrink-0 overflow-hidden rounded-[24px] border border-line bg-surface [scroll-snap-align:start] md:w-[560px]">
+        <div class="h-[62vw] max-h-[440px] overflow-hidden bg-paper md:h-[380px]">
+          <img src={p.data.thumb ?? p.data.cover} alt={p.data.client} loading="lazy" draggable="false" class={`h-full w-full object-cover ${POSITION[p.data.thumbPosition]} transition-transform duration-700 group-hover:scale-105`} />
         </div>
-        <span class="absolute left-5 top-5 rounded-full bg-paper/90 px-3 py-1 text-[13px] font-medium text-ink backdrop-blur">{p.cat}</span>
+        <span class="absolute left-5 top-5 rounded-full bg-paper/90 px-3 py-1 text-[13px] font-medium text-ink backdrop-blur">{p.data.category}</span>
         <div class="p-6">
-          <h3 class="font-display text-[24px] font-semibold text-ink">{p.name}</h3>
-          <p class="mt-1 text-[15px] text-slate">{p.result}</p>
+          <h3 class="font-display text-[24px] font-semibold text-ink">{p.data.client}</h3>
+          <p class="mt-1 text-[15px] text-slate">{p.data.summary}</p>
         </div>
-      </div>
+      </a>
     ))}    <!-- Explore more card -->
     <div class="flex w-[85vw] shrink-0 flex-col justify-between rounded-[24px] bg-ink p-8 text-white [scroll-snap-align:start] md:w-[420px]">
       <span class="flex h-11 w-11 items-center justify-center rounded-[12px] bg-white/10 font-display text-[17px] font-semibold">MH<span class="text-signal-ondark">.</span></span>
@@ -70,11 +68,13 @@ const img = (file) => `/work/${file}`;
 
     // Click-and-drag
     let isDown = false;
+    let dragged = false;
     let startX = 0;
     let startScroll = 0;
 
     track.addEventListener("mousedown", (e) => {
       isDown = true;
+      dragged = false;
       track.classList.add("is-dragging");
       startX = e.pageX;
       startScroll = track.scrollLeft;
@@ -86,7 +86,15 @@ const img = (file) => `/work/${file}`;
     window.addEventListener("mousemove", (e) => {
       if (!isDown) return;
       e.preventDefault();
+      if (Math.abs(e.pageX - startX) > 5) dragged = true;
       track.scrollLeft = startScroll - (e.pageX - startX);
     });
+    // A drag that ends on a card shouldn't open it
+    track.addEventListener("click", (e) => {
+      if (dragged) {
+        e.preventDefault();
+        dragged = false;
+      }
+    }, true);
   }
 </script>
